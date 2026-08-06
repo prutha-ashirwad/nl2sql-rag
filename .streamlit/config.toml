@@ -1,0 +1,22 @@
+# Streamlit theme and server defaults.
+
+[theme]
+base = "dark"
+primaryColor = "#6D8CFF"
+backgroundColor = "#0B0E14"
+secondaryBackgroundColor = "#141922"
+textColor = "#E4E9F2"
+font = "sans serif"
+
+[server]
+headless = true
+# `make run` wraps the app in watchfiles instead; Streamlit's own watcher would
+# rebuild the cached Knowledge Base and indexes on every save.
+fileWatcherType = "none"
+
+[browser]
+gatherUsageStats = false
+
+[client]
+showErrorDetails = "stacktrace"
+toolbarMode = "minimal"

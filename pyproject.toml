@@ -1,0 +1,86 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "nl2sql"
+version = "1.0.0"
+description = "Natural language to SQL using a LangGraph workflow and a RAG Knowledge Base"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+
+dependencies = [
+    "langgraph>=0.2.60",
+    "langchain-core>=0.3.25",
+    "pydantic>=2.9.0",
+    "pydantic-settings>=2.6.0",
+    "PyYAML>=6.0.2",
+    "sqlglot>=25.30.0",
+    "SQLAlchemy>=2.0.36",
+    "numpy>=1.26.0",
+    "streamlit>=1.40.0",
+    "pandas>=2.0.0",
+    "typer>=0.15.1",
+    "rich>=13.9.0",
+    "fastapi>=0.115.0",
+    "uvicorn>=0.32.0",
+    "python-dotenv>=1.0.1",
+]
+
+[project.optional-dependencies]
+anthropic = ["anthropic>=0.40.0"]
+openai = ["openai>=1.55.0"]
+faiss = ["faiss-cpu>=1.9.0"]
+# SQLAlchemy reaches SQLite unaided; every other engine needs its own driver.
+postgres = ["psycopg2-binary>=2.9.9"]
+dev = [
+    "pytest>=8.3.0",
+    "pytest-cov>=6.0.0",
+    "httpx>=0.28.0",
+    # `make run` and `make api` reload on change through these.
+    "watchfiles>=0.24.0",
+    "ruff>=0.8.0",
+    # The optional backends, so the suite exercises them instead of skipping them.
+    # They stay optional at runtime; only the tests for them need the packages.
+    "openai>=1.55.0",
+    "faiss-cpu>=1.9.0",
+]
+
+[project.scripts]
+nl2sql = "nl2sql.cli:main"
+
+# Flat layout: name the packages explicitly, or `tests` and `data` get picked up.
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["nl2sql*"]
+
+[tool.setuptools.package-data]
+nl2sql = ["knowledge_base/data/**/*.yaml"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-q --strict-markers"
+
+[tool.ruff]
+line-length = 90
+target-version = "py311"
+src = [".", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "UP", "B", "SIM", "ANN", "D"]
+ignore = [
+    "ANN401", # `Any` is deliberate on the serialisation boundaries
+    "D107",   # __init__ behaviour is documented on the class docstring
+    "D203",   # conflicts with D211, which is the convention used here
+    "D213",   # conflicts with D212, which is the convention used here
+    "D401",   # boolean predicates are documented uniformly as "True when …"
+    "D413",   # a trailing blank line inside a docstring adds nothing
+    "UP042",  # str-mixin enums serialise more predictably through Pydantic
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["D", "ANN"]
+# Demo fixture rows read better as wide, tabular literals than wrapped ones.
+"nl2sql/database/demo_data.py" = ["E501"]

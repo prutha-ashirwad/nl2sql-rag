@@ -1,0 +1,158 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1240 900" width="1240" height="900" font-family="ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif">
+  <title>The LangGraph agent as a state machine</title>
+  <desc>Seven nodes, four routers with their real predicates, a repair cycle that returns to validation, and four early exits that all land on finalize.</desc>
+
+  <defs>
+    <marker id="w" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5.5" markerHeight="5.5" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#94A3B8"/>
+    </marker>
+    <marker id="wx" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5.5" markerHeight="5.5" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#CBD5E1"/>
+    </marker>
+    <marker id="wr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5.5" markerHeight="5.5" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#FB7185"/>
+    </marker>
+  </defs>
+
+  <style>
+    .t    { font-size: 22px; font-weight: 700; fill: #0F172A; }
+    .sub  { font-size: 13px; fill: #64748B; }
+    .sec  { font-size: 11px; font-weight: 700; fill: #94A3B8; letter-spacing: 1.4px; }
+    .bt   { font-size: 13.5px; font-weight: 650; fill: #0F172A; }
+    .bd   { font-size: 11.5px; fill: #64748B; }
+    .nn   { font-size: 13px; font-weight: 600; }
+    .nd   { font-size: 10.5px; fill: #64748B; }
+    .cond { font-size: 10.5px; fill: #475569; }
+    .condm{ font-size: 10.5px; fill: #94A3B8; }
+    .mono { font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace; }
+    .wire { stroke: #94A3B8; stroke-width: 1.4; fill: none; }
+    .exit { stroke: #CBD5E1; stroke-width: 1.4; fill: none; stroke-dasharray: 4 4; }
+    .rep  { stroke: #FB7185; stroke-width: 1.6; fill: none; }
+  </style>
+
+  <rect width="1240" height="900" fill="#FFFFFF"/>
+
+  <text class="t" x="32" y="44">The agent as a state machine</text>
+  <text class="sub" x="32" y="68">Seven nodes, four routers, one bounded cycle. Every label on an edge is the actual predicate the router evaluates — no routing decision is left to the model.</text>
+
+  <!-- ── START ─────────────────────────────────────────────────────── -->
+  <circle cx="380" cy="104" r="16" fill="#0F172A"/>
+  <text class="mono" x="380" y="107" text-anchor="middle" fill="#FFFFFF" font-size="8.5">START</text>
+  <path class="wire" d="M380 120 V124" marker-end="url(#w)"/>
+
+  <!-- ── spine ─────────────────────────────────────────────────────── -->
+  <rect x="280" y="128" width="200" height="58" rx="8" fill="#EFF6FF" stroke="#BFDBFE"/>
+  <text class="nn mono" x="380" y="154" text-anchor="middle" fill="#1E3A8A">analyze_question</text>
+  <text class="nd" x="380" y="171" text-anchor="middle">intent · filters · window</text>
+
+  <rect x="280" y="222" width="200" height="58" rx="8" fill="#F5F3FF" stroke="#DDD6FE"/>
+  <text class="nn mono" x="380" y="248" text-anchor="middle" fill="#5B21B6">retrieve_context</text>
+  <text class="nd" x="380" y="265" text-anchor="middle">rank · anchor · expand</text>
+
+  <rect x="280" y="316" width="200" height="58" rx="8" fill="#FFFBEB" stroke="#FDE68A"/>
+  <text class="nn mono" x="380" y="342" text-anchor="middle" fill="#92400E">generate_sql</text>
+  <text class="nd" x="380" y="359" text-anchor="middle">model or planner</text>
+
+  <rect x="280" y="410" width="200" height="58" rx="8" fill="#ECFDF5" stroke="#A7F3D0"/>
+  <text class="nn mono" x="380" y="436" text-anchor="middle" fill="#065F46">validate_sql</text>
+  <text class="nd" x="380" y="453" text-anchor="middle">12 issue codes</text>
+
+  <rect x="280" y="504" width="200" height="58" rx="8" fill="#ECFDF5" stroke="#A7F3D0"/>
+  <text class="nn mono" x="380" y="530" text-anchor="middle" fill="#065F46">execute_sql</text>
+  <text class="nd" x="380" y="547" text-anchor="middle">read-only, row-capped</text>
+
+  <rect x="280" y="598" width="200" height="58" rx="8" fill="#0F172A"/>
+  <text class="nn mono" x="380" y="624" text-anchor="middle" fill="#FFFFFF">finalize</text>
+  <text class="nd" x="380" y="641" text-anchor="middle" fill="#94A3B8">every path ends here</text>
+
+  <path class="wire" d="M380 186 V214" marker-end="url(#w)"/>
+  <path class="wire" d="M380 280 V308" marker-end="url(#w)"/>
+  <path class="wire" d="M380 374 V402" marker-end="url(#w)"/>
+  <path class="wire" d="M380 468 V496" marker-end="url(#w)"/>
+  <path class="wire" d="M380 562 V590" marker-end="url(#w)"/>
+
+  <text class="cond mono" x="368" y="204" text-anchor="end">is_supported</text>
+  <text class="cond mono" x="368" y="298" text-anchor="end">not context.is_empty</text>
+  <text class="cond mono" x="368" y="392" text-anchor="end">state["sql"]</text>
+  <text class="cond mono" x="368" y="486" text-anchor="end">is_valid and execute</text>
+  <text class="condm" x="368" y="580" text-anchor="end">rows returned</text>
+
+  <circle cx="380" cy="700" r="16" fill="#0F172A"/>
+  <text class="mono" x="380" y="704" text-anchor="middle" fill="#FFFFFF" font-size="10">END</text>
+  <path class="wire" d="M380 656 V680" marker-end="url(#w)"/>
+
+  <!-- ── repair cycle, to the left ─────────────────────────────────── -->
+  <rect x="40" y="410" width="200" height="58" rx="8" fill="#FFF1F2" stroke="#FECDD3"/>
+  <text class="nn mono" x="140" y="436" text-anchor="middle" fill="#9F1239">repair_sql</text>
+  <text class="nd" x="140" y="453" text-anchor="middle">errors fed back in</text>
+
+  <path class="rep" d="M276 424 H248" marker-end="url(#wr)"/>
+  <path class="rep" d="M244 454 H272" marker-end="url(#wr)"/>
+  <text class="cond" x="140" y="398" text-anchor="middle" fill="#9F1239">not is_valid, attempts left</text>
+  <text class="condm" x="140" y="490" text-anchor="middle">returns to validation, never</text>
+  <text class="condm" x="140" y="506" text-anchor="middle">back to generation</text>
+
+  <!-- ── early-exit rail ───────────────────────────────────────────── -->
+  <path class="exit" d="M484 157 H700 M484 251 H700 M484 345 H700 M484 439 H700 M700 157 V627 H488" marker-end="url(#wx)"/>
+
+  <text class="condm mono" x="492" y="151">not is_supported</text>
+  <text class="condm mono" x="492" y="245">context.is_empty</text>
+  <text class="condm mono" x="492" y="339">no sql</text>
+  <text class="condm" x="492" y="433">exhausted, or execution off</text>
+
+  <!-- ── the four early exits ──────────────────────────────────────── -->
+  <text class="sec" x="760" y="112">THE FOUR EARLY EXITS — WHY A CALLER NEVER GETS AN EXCEPTION</text>
+
+  <rect x="760" y="128" width="448" height="104" rx="8" fill="#F8FAFC" stroke="#CBD5E1"/>
+  <text class="bt" x="782" y="154">1 · The question is refused</text>
+  <text class="bd" x="782" y="176">A mutating word such as <tspan class="mono">delete</tspan> or <tspan class="mono">update</tspan> appears, or</text>
+  <text class="bd" x="782" y="194">nothing in the question resolves to the Knowledge Base at</text>
+  <text class="bd" x="782" y="212">all — retrieval has no similarity floor, so this is the floor.</text>
+
+  <rect x="760" y="248" width="448" height="104" rx="8" fill="#F8FAFC" stroke="#CBD5E1"/>
+  <text class="bt" x="782" y="274">2 · Nothing was retrieved</text>
+  <text class="bd" x="782" y="296">The corpus returned no usable context, so there is no</text>
+  <text class="bd" x="782" y="314">schema to generate against. No guess is attempted and no</text>
+  <text class="bd" x="782" y="332">prompt is sent.</text>
+
+  <rect x="760" y="368" width="448" height="104" rx="8" fill="#F8FAFC" stroke="#CBD5E1"/>
+  <text class="bt" x="782" y="394">3 · No SQL was produced</text>
+  <text class="bd" x="782" y="416">The generator wrote no statement — a provider outage, or</text>
+  <text class="bd" x="782" y="434">a query shape the deterministic planner does not cover.</text>
+  <text class="bd" x="782" y="452">The router tests the SQL string, not a success flag.</text>
+
+  <rect x="760" y="488" width="448" height="104" rx="8" fill="#F8FAFC" stroke="#CBD5E1"/>
+  <text class="bt" x="782" y="514">4 · Repair gave up, or execution is off</text>
+  <text class="bd" x="782" y="536">Still invalid once <tspan class="mono">MAX_REPAIR_ATTEMPTS</tspan> is spent: the errors</text>
+  <text class="bd" x="782" y="554">are reported rather than a wrong query run. The same edge</text>
+  <text class="bd" x="782" y="572">carries a <tspan font-style="italic">valid</tspan> query when <tspan class="mono">EXECUTE_QUERIES</tspan> is false.</text>
+
+  <!-- ── timing band ───────────────────────────────────────────────── -->
+  <text class="sec" x="32" y="752">WHERE THE TIME GOES — MEASURED ON THE DETERMINISTIC PATH, NO MODEL CALL</text>
+
+  <rect x="32" y="764" width="1176" height="112" rx="8" fill="#F8FAFC" stroke="#CBD5E1"/>
+
+  <rect x="56"  y="790" width="40"  height="24" rx="3" fill="#BFDBFE"/>
+  <rect x="96"  y="790" width="161" height="24" rx="3" fill="#DDD6FE"/>
+  <rect x="257" y="790" width="49"  height="24" rx="3" fill="#FDE68A"/>
+  <rect x="306" y="790" width="474" height="24" rx="3" fill="#6EE7B7"/>
+  <rect x="780" y="790" width="119" height="24" rx="3" fill="#A7F3D0"/>
+  <rect x="899" y="790" width="3"   height="24" rx="1" fill="#94A3B8"/>
+
+  <text class="nd mono" x="56"  y="834">analyze</text>
+  <text class="nd mono" x="56"  y="850" fill="#94A3B8">0.39 ms</text>
+  <text class="nd mono" x="112" y="834">retrieve</text>
+  <text class="nd mono" x="112" y="850" fill="#94A3B8">1.58 ms</text>
+  <text class="nd mono" x="257" y="834">generate</text>
+  <text class="nd mono" x="257" y="850" fill="#94A3B8">0.48 ms</text>
+  <text class="nd mono" x="350" y="834">validate</text>
+  <text class="nd mono" x="350" y="850" fill="#94A3B8">4.66 ms — 56% of the whole run</text>
+  <text class="nd mono" x="780" y="834">execute</text>
+  <text class="nd mono" x="780" y="850" fill="#94A3B8">1.17 ms</text>
+
+  <text class="bd" x="936" y="794">Total <tspan font-weight="650" fill="#0F172A">8.29 ms</tspan> warm, end to end.</text>
+  <text class="bd" x="936" y="814">Checking the query costs more than</text>
+  <text class="bd" x="936" y="832">writing it. Point the same graph at a</text>
+  <text class="bd" x="936" y="850">hosted model and one network call</text>
+  <text class="bd" x="936" y="868">dwarfs all six nodes together.</text>
+</svg>

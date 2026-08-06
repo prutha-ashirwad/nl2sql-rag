@@ -1,0 +1,191 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1240 952" width="1240" height="952" font-family="ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif">
+  <title>NL2SQL system architecture</title>
+  <desc>Four entry points converge on one pipeline facade, which runs a seven-node LangGraph agent over a YAML Knowledge Base and a read-only database.</desc>
+
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5.5" markerHeight="5.5" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#94A3B8"/>
+    </marker>
+    <marker id="am" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5.5" markerHeight="5.5" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#CBD5E1"/>
+    </marker>
+    <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5.5" markerHeight="5.5" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#FB7185"/>
+    </marker>
+  </defs>
+
+  <style>
+    .t     { font-size: 22px; font-weight: 700; fill: #0F172A; }
+    .sub   { font-size: 13px; fill: #64748B; }
+    .sec   { font-size: 11px; font-weight: 700; fill: #94A3B8; letter-spacing: 1.4px; }
+    .bt    { font-size: 14px; font-weight: 650; fill: #0F172A; }
+    .bd    { font-size: 11.5px; fill: #64748B; }
+    .mono  { font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace; }
+    .nn    { font-size: 12.5px; font-weight: 600; fill: #1E3A8A; }
+    .nd    { font-size: 10.5px; fill: #64748B; }
+    .el    { font-size: 10.5px; fill: #94A3B8; }
+    .pill  { font-size: 10.5px; font-weight: 600; }
+    .lead  { fill: #FFFFFF; }
+    .wire  { stroke: #94A3B8; stroke-width: 1.4; fill: none; }
+    .wiremd{ stroke: #CBD5E1; stroke-width: 1.4; fill: none; stroke-dasharray: 4 4; }
+    .rep   { stroke: #FB7185; stroke-width: 1.4; fill: none; }
+  </style>
+
+  <rect width="1240" height="952" fill="#FFFFFF"/>
+
+  <text class="t" x="32" y="44">NL2SQL — system architecture</text>
+  <text class="sub" x="32" y="68">Four ways in, one pipeline, one agent. Every box below is a module in this repository; every arrow is a real call path.</text>
+
+  <!-- ── Entry points ───────────────────────────────────────────────── -->
+  <text class="sec" x="32" y="112">ENTRY POINTS</text>
+
+  <g>
+    <rect x="32"  y="124" width="282" height="64" rx="8" fill="#F8FAFC" stroke="#CBD5E1"/>
+    <text class="bt" x="173" y="151" text-anchor="middle">Streamlit web interface</text>
+    <text class="bd" x="173" y="171" text-anchor="middle">5 pages · ask, trace, KB, compare, database</text>
+
+    <rect x="330" y="124" width="282" height="64" rx="8" fill="#F8FAFC" stroke="#CBD5E1"/>
+    <text class="bt" x="471" y="151" text-anchor="middle">Typer command line</text>
+    <text class="bd mono" x="471" y="171" text-anchor="middle">ask · seed · inspect · demo</text>
+
+    <rect x="628" y="124" width="282" height="64" rx="8" fill="#F8FAFC" stroke="#CBD5E1"/>
+    <text class="bt" x="769" y="151" text-anchor="middle">FastAPI HTTP service</text>
+    <text class="bd mono" x="769" y="171" text-anchor="middle">5 routes · /ask · /health · /schema/*</text>
+
+    <rect x="926" y="124" width="282" height="64" rx="8" fill="#F8FAFC" stroke="#CBD5E1"/>
+    <text class="bt" x="1067" y="151" text-anchor="middle">Python import</text>
+    <text class="bd mono" x="1067" y="171" text-anchor="middle">NL2SQLPipeline.answer()</text>
+  </g>
+
+  <!-- entry bus -->
+  <path class="wire" d="M173 188 V204 M471 188 V204 M769 188 V204 M1067 188 V204 M173 204 H1067"/>
+  <path class="wire" d="M620 204 V218" marker-end="url(#a)"/>
+
+  <!-- ── Facade ─────────────────────────────────────────────────────── -->
+  <rect x="410" y="220" width="420" height="58" rx="8" fill="#0F172A"/>
+  <text class="bt mono lead" x="620" y="245" text-anchor="middle">NL2SQLPipeline</text>
+  <text class="bd" x="620" y="264" text-anchor="middle" fill="#94A3B8">compiles the graph once, then answers many questions</text>
+
+  <path class="wire" d="M620 278 V298" marker-end="url(#a)"/>
+
+  <!-- ── LangGraph agent ────────────────────────────────────────────── -->
+  <rect x="32" y="300" width="1176" height="232" rx="10" fill="#F8FAFC" stroke="#CBD5E1" stroke-dasharray="5 4"/>
+  <text class="sec" x="56" y="326" fill="#64748B">LANGGRAPH AGENT — 7 NODES, DECLARED ROUTING, BOUNDED REPAIR</text>
+
+  <g>
+    <rect x="56"   y="340" width="168" height="58" rx="8" fill="#EFF6FF" stroke="#BFDBFE"/>
+    <text class="nn mono" x="140" y="366" text-anchor="middle">analyze_question</text>
+    <text class="nd" x="140" y="383" text-anchor="middle">intent · filters · window</text>
+
+    <rect x="248"  y="340" width="168" height="58" rx="8" fill="#F5F3FF" stroke="#DDD6FE"/>
+    <text class="nn mono" x="332" y="366" text-anchor="middle" fill="#5B21B6">retrieve_context</text>
+    <text class="nd" x="332" y="383" text-anchor="middle">rank · anchor · expand</text>
+
+    <rect x="440"  y="340" width="168" height="58" rx="8" fill="#FFFBEB" stroke="#FDE68A"/>
+    <text class="nn mono" x="524" y="366" text-anchor="middle" fill="#92400E">generate_sql</text>
+    <text class="nd" x="524" y="383" text-anchor="middle">model or planner</text>
+
+    <rect x="632"  y="340" width="168" height="58" rx="8" fill="#ECFDF5" stroke="#A7F3D0"/>
+    <text class="nn mono" x="716" y="366" text-anchor="middle" fill="#065F46">validate_sql</text>
+    <text class="nd" x="716" y="383" text-anchor="middle">12 issue codes vs the KB</text>
+
+    <rect x="824"  y="340" width="168" height="58" rx="8" fill="#ECFDF5" stroke="#A7F3D0"/>
+    <text class="nn mono" x="908" y="366" text-anchor="middle" fill="#065F46">execute_sql</text>
+    <text class="nd" x="908" y="383" text-anchor="middle">read-only, row-capped</text>
+
+    <rect x="1016" y="340" width="168" height="58" rx="8" fill="#F1F5F9" stroke="#CBD5E1"/>
+    <text class="nn mono" x="1100" y="366" text-anchor="middle" fill="#334155">finalize</text>
+    <text class="nd" x="1100" y="383" text-anchor="middle">always reached</text>
+  </g>
+
+  <path class="wire" d="M224 369 H244" marker-end="url(#a)"/>
+  <path class="wire" d="M416 369 H436" marker-end="url(#a)"/>
+  <path class="wire" d="M608 369 H628" marker-end="url(#a)"/>
+  <path class="wire" d="M800 369 H820" marker-end="url(#a)"/>
+  <path class="wire" d="M992 369 H1012" marker-end="url(#a)"/>
+
+  <!-- repair loop -->
+  <rect x="616" y="424" width="200" height="52" rx="8" fill="#FFF1F2" stroke="#FECDD3"/>
+  <text class="nn mono" x="716" y="447" text-anchor="middle" fill="#9F1239">repair_sql</text>
+  <text class="nd" x="716" y="464" text-anchor="middle">feeds the errors back</text>
+
+  <path class="rep" d="M692 398 V420" marker-end="url(#ar)"/>
+  <path class="rep" d="M740 420 V400" marker-end="url(#ar)"/>
+  <text class="el" x="606" y="446" text-anchor="end" fill="#9F1239">fails validation</text>
+  <text class="el" x="826" y="446">re-checked, up to MAX_REPAIR_ATTEMPTS</text>
+
+  <!-- early-exit rail -->
+  <path class="wiremd" d="M140 398 V496 M332 398 V496 M524 398 V496 M140 496 H1100 M1100 496 V402" marker-end="url(#am)"/>
+  <text class="el" x="620" y="518" text-anchor="middle">early exit — a write request, an ungrounded question, nothing retrieved, or no SQL produced — still returns a formed answer</text>
+
+  <!-- ── Subsystems ─────────────────────────────────────────────────── -->
+  <text class="sec" x="32" y="562">WHAT THE NODES CALL</text>
+
+  <g>
+    <rect x="32"  y="574" width="224" height="88" rx="8" fill="#FFFFFF" stroke="#CBD5E1"/>
+    <text class="bt" x="144" y="601" text-anchor="middle">Question analyzer</text>
+    <text class="bd" x="144" y="622" text-anchor="middle">intent, filters, time window,</text>
+    <text class="bd" x="144" y="640" text-anchor="middle">grouping · rejects writes</text>
+
+    <rect x="270" y="574" width="224" height="88" rx="8" fill="#FFFFFF" stroke="#DDD6FE"/>
+    <text class="bt" x="382" y="601" text-anchor="middle" fill="#5B21B6">Hybrid retriever · RAG</text>
+    <text class="bd" x="382" y="622" text-anchor="middle">BM25 + dense + lexicon,</text>
+    <text class="bd" x="382" y="640" text-anchor="middle">fused by RRF, joins expanded</text>
+
+    <rect x="508" y="574" width="224" height="88" rx="8" fill="#FFFFFF" stroke="#FDE68A"/>
+    <text class="bt" x="620" y="601" text-anchor="middle" fill="#92400E">SQL generator</text>
+    <text class="bd" x="620" y="622" text-anchor="middle">model-backed, with the</text>
+    <text class="bd" x="620" y="640" text-anchor="middle">deterministic planner behind it</text>
+
+    <rect x="746" y="574" width="224" height="88" rx="8" fill="#FFFFFF" stroke="#A7F3D0"/>
+    <text class="bt" x="858" y="601" text-anchor="middle" fill="#065F46">SQL validator</text>
+    <text class="bd" x="858" y="622" text-anchor="middle">unknown tables and columns,</text>
+    <text class="bd" x="858" y="640" text-anchor="middle">undeclared joins, bad literals</text>
+
+    <rect x="984" y="574" width="224" height="88" rx="8" fill="#FFFFFF" stroke="#A7F3D0"/>
+    <text class="bt" x="1096" y="601" text-anchor="middle" fill="#065F46">Read-only executor</text>
+    <text class="bd" x="1096" y="622" text-anchor="middle">re-asserts SELECT / WITH only,</text>
+    <text class="bd" x="1096" y="640" text-anchor="middle">optional row cap</text>
+  </g>
+
+  <!-- bracket into the Knowledge Base -->
+  <path class="wire" d="M144 662 V684 M382 662 V684 M620 662 V684 M858 662 V684 M144 684 H858"/>
+  <path class="wire" d="M501 684 V702" marker-end="url(#a)"/>
+  <path class="wire" d="M1096 662 V702" marker-end="url(#a)"/>
+
+  <!-- ── Sources of truth ───────────────────────────────────────────── -->
+  <g>
+    <rect x="32" y="704" width="938" height="98" rx="8" fill="#F1F5F9" stroke="#CBD5E1"/>
+    <text class="bt" x="56" y="733">Knowledge Base — YAML, loaded at start-up, never compiled into the code</text>
+    <text class="bd" x="56" y="756">23 tables · 170 columns · 34 relationships · 15 SQL rules · 16 glossary terms · 12 worked examples</text>
+    <text class="bd" x="56" y="776">Compiled into 100 retrieval documents. The same file is read by retrieval, by generation and by validation —</text>
+    <text class="bd" x="56" y="792">which is why an invented column fails against the very source that produced the prompt.</text>
+
+    <rect x="984" y="704" width="224" height="98" rx="8" fill="#F1F5F9" stroke="#CBD5E1"/>
+    <text class="bt" x="1096" y="733" text-anchor="middle">Database</text>
+    <text class="bd" x="1096" y="756" text-anchor="middle">SQLite · PostgreSQL · MySQL</text>
+    <text class="bd" x="1096" y="776" text-anchor="middle">One declaration renders</text>
+    <text class="bd" x="1096" y="792" text-anchor="middle">per engine</text>
+  </g>
+
+  <!-- ── Pluggable ──────────────────────────────────────────────────── -->
+  <text class="sec" x="32" y="840">SWAPPABLE BY CONFIGURATION — EACH RESOLVED THROUGH A REGISTRY, NO AGENT CHANGE</text>
+
+  <g>
+    <rect x="32"  y="852" width="283" height="68" rx="8" fill="#FFFFFF" stroke="#CBD5E1"/>
+    <text class="bt" x="173" y="878" text-anchor="middle">Model provider</text>
+    <text class="bd mono" x="173" y="899" text-anchor="middle">anthropic · openai · deterministic</text>
+
+    <rect x="329" y="852" width="283" height="68" rx="8" fill="#FFFFFF" stroke="#CBD5E1"/>
+    <text class="bt" x="470" y="878" text-anchor="middle">Embeddings</text>
+    <text class="bd mono" x="470" y="899" text-anchor="middle">openai · tfidf</text>
+
+    <rect x="626" y="852" width="283" height="68" rx="8" fill="#FFFFFF" stroke="#CBD5E1"/>
+    <text class="bt" x="767" y="878" text-anchor="middle">Vector store</text>
+    <text class="bd mono" x="767" y="899" text-anchor="middle">memory · faiss</text>
+
+    <rect x="923" y="852" width="283" height="68" rx="8" fill="#FFFFFF" stroke="#CBD5E1"/>
+    <text class="bt" x="1064" y="878" text-anchor="middle">SQL dialect</text>
+    <text class="bd mono" x="1064" y="899" text-anchor="middle">sqlite · postgres · mysql</text>
+  </g>
+</svg>

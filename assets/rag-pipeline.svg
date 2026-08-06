@@ -1,0 +1,107 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1240 690" width="1240" height="690" font-family="ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif">
+  <title>The RAG retrieval pipeline</title>
+  <desc>The Knowledge Base compiles into 100 documents, three retrieval signals are fused by reciprocal rank fusion, then declared join paths are expanded into the prompt context.</desc>
+
+  <defs>
+    <marker id="b" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5.5" markerHeight="5.5" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#94A3B8"/>
+    </marker>
+  </defs>
+
+  <style>
+    .t    { font-size: 22px; font-weight: 700; fill: #0F172A; }
+    .sub  { font-size: 13px; fill: #64748B; }
+    .bt   { font-size: 14px; font-weight: 650; fill: #0F172A; }
+    .bd   { font-size: 11.5px; fill: #64748B; }
+    .step { font-size: 11px; font-weight: 700; fill: #94A3B8; letter-spacing: 1.2px; }
+    .mono { font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace; }
+    .wire { stroke: #94A3B8; stroke-width: 1.4; fill: none; }
+  </style>
+
+  <rect width="1240" height="690" fill="#FFFFFF"/>
+
+  <text class="t" x="32" y="44">The RAG retrieval pipeline</text>
+  <text class="sub" x="32" y="68">Three signals rank one corpus, ranks are fused rather than scores, then the structure of the schema fills in what ranking cannot.</text>
+
+  <!-- ── 1. Knowledge Base ──────────────────────────────────────────── -->
+  <text class="step" x="32" y="108">STEP 1</text>
+  <rect x="32" y="118" width="248" height="120" rx="8" fill="#F1F5F9" stroke="#CBD5E1"/>
+  <text class="bt" x="156" y="146" text-anchor="middle">Knowledge Base</text>
+  <text class="bd mono" x="156" y="168" text-anchor="middle">knowledge_base/data/*.yaml</text>
+  <text class="bd" x="156" y="192" text-anchor="middle">23 tables · 34 relationships</text>
+  <text class="bd" x="156" y="210" text-anchor="middle">15 rules · 16 glossary terms</text>
+  <text class="bd" x="156" y="228" text-anchor="middle">12 worked examples</text>
+
+  <path class="wire" d="M280 178 H318" marker-end="url(#b)"/>
+
+  <!-- ── 2. Documents ───────────────────────────────────────────────── -->
+  <text class="step" x="326" y="108">STEP 2</text>
+  <rect x="326" y="118" width="200" height="120" rx="8" fill="#FFFFFF" stroke="#CBD5E1"/>
+  <text class="bt" x="426" y="152" text-anchor="middle">100 documents</text>
+  <text class="bd" x="426" y="178" text-anchor="middle">one per table, plus one</text>
+  <text class="bd" x="426" y="196" text-anchor="middle">per relationship, rule,</text>
+  <text class="bd" x="426" y="214" text-anchor="middle">glossary term and example</text>
+
+  <!-- fan out -->
+  <path class="wire" d="M526 178 H562 M562 170 V378 M562 170 H598 M562 274 H598 M562 378 H598"/>
+  <path class="wire" d="M594 170 H602" marker-end="url(#b)"/>
+  <path class="wire" d="M594 274 H602" marker-end="url(#b)"/>
+  <path class="wire" d="M594 378 H602" marker-end="url(#b)"/>
+
+  <!-- ── 3. Three signals ───────────────────────────────────────────── -->
+  <text class="step" x="606" y="108">STEP 3 — THREE SIGNALS, ONE CORPUS</text>
+
+  <rect x="606" y="124" width="330" height="92" rx="8" fill="#EFF6FF" stroke="#BFDBFE"/>
+  <text class="bt" x="626" y="152" fill="#1E3A8A">Lexical — BM25</text>
+  <text class="bd" x="626" y="174">Table names, column names and declared</text>
+  <text class="bd" x="626" y="192">synonyms. Exact identifier matches must win.</text>
+
+  <rect x="606" y="228" width="330" height="92" rx="8" fill="#F5F3FF" stroke="#DDD6FE"/>
+  <text class="bt" x="626" y="256" fill="#5B21B6">Dense — cosine over embeddings</text>
+  <text class="bd" x="626" y="278">Reaches wording the schema never uses.</text>
+  <text class="bd" x="626" y="296">Embedder and index are both swappable.</text>
+
+  <rect x="606" y="332" width="330" height="92" rx="8" fill="#F0FDFA" stroke="#99F6E4"/>
+  <text class="bt" x="626" y="360" fill="#115E59">Lexicon — curated synonyms</text>
+  <text class="bd" x="626" y="382">Business wording that appears nowhere in</text>
+  <text class="bd" x="626" y="400">the schema text, taken from the glossary.</text>
+
+  <!-- fan in -->
+  <path class="wire" d="M936 170 H976 M936 274 H976 M936 378 H976 M976 170 V378"/>
+  <path class="wire" d="M976 274 H1008" marker-end="url(#b)"/>
+
+  <!-- ── 4. Fusion ──────────────────────────────────────────────────── -->
+  <text class="step" x="1016" y="216">STEP 4</text>
+  <rect x="1016" y="228" width="192" height="92" rx="8" fill="#0F172A"/>
+  <text class="bt" x="1112" y="258" text-anchor="middle" fill="#FFFFFF">Rank fusion</text>
+  <text class="bd" x="1112" y="280" text-anchor="middle" fill="#94A3B8">Reciprocal Rank Fusion</text>
+  <text class="bd mono" x="1112" y="300" text-anchor="middle" fill="#94A3B8">k = 60</text>
+
+  <text class="bd" x="1112" y="346" text-anchor="middle">Merges <tspan font-style="italic">ranks</tspan>, not scores, so an</text>
+  <text class="bd" x="1112" y="364" text-anchor="middle">unbounded BM25 score and a</text>
+  <text class="bd" x="1112" y="382" text-anchor="middle">0–1 cosine need no calibration.</text>
+
+  <path class="wire" d="M1112 400 V442 H620 V492" marker-end="url(#b)"/>
+
+  <!-- ── 5. Structural expansion ────────────────────────────────────── -->
+  <text class="step" x="32" y="490">STEP 5 — WHAT RANKING ALONE CANNOT DO</text>
+  <rect x="32" y="502" width="700" height="152" rx="8" fill="#FFFBEB" stroke="#FDE68A"/>
+  <text class="bt" x="56" y="532" fill="#92400E">Structural expansion along declared join paths</text>
+  <text class="bd" x="56" y="556">The top-ranked document names the <tspan font-weight="650" fill="#0F172A">anchor table</tspan>. Every other candidate is then</text>
+  <text class="bd" x="56" y="574">pulled in along the paths declared in <tspan class="mono">relationships.yaml</tspan> — never one the model guessed.</text>
+  <text class="bd" x="56" y="600">This is what keeps invented joins out of the output: the agent is never asked which tables</text>
+  <text class="bd" x="56" y="618">connect, only which subject the question is about. An invariant test asserts that every foreign</text>
+  <text class="bd" x="56" y="636">key has a matching relationship, so no link can go missing from the graph.</text>
+
+  <path class="wire" d="M732 578 H768" marker-end="url(#b)"/>
+
+  <!-- ── 6. Context ─────────────────────────────────────────────────── -->
+  <text class="step" x="776" y="490">STEP 6</text>
+  <rect x="776" y="502" width="432" height="152" rx="8" fill="#F8FAFC" stroke="#CBD5E1"/>
+  <text class="bt" x="800" y="532">The context the generator writes against</text>
+  <text class="bd" x="800" y="556">Top <tspan class="mono">RETRIEVAL_TOP_K</tspan> documents (default 8), the</text>
+  <text class="bd" x="800" y="574">expanded join paths, the SQL rules that apply, matching</text>
+  <text class="bd" x="800" y="592">glossary definitions and the closest worked examples.</text>
+  <text class="bd" x="800" y="618">The same Knowledge Base is read again by validation, so</text>
+  <text class="bd" x="800" y="636">generation and checking cannot drift apart.</text>
+</svg>

@@ -1,0 +1,44 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+*.egg
+build/
+dist/
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# Tooling caches and coverage reports
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Local configuration — never commit real credentials
+.env
+.env.local
+
+# Generated data: the demo database is rebuilt by `make seed`
+data/
+*.db
+*.sqlite
+*.sqlite3
+
+# Background service state: PID files and captured output
+.run/
+logs/
+
+# Local notes and working documents, kept out of the repository
+docs/
+
+# Editors and OS
+.idea/
+.vscode/
+.claude/
+*.swp
+.DS_Store

@@ -1,0 +1,120 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1240 664" width="1240" height="664" font-family="ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif">
+<title>The 23-table data model</title>
+<desc>Twenty-three tables across six business domains, joined by thirty-four declared relationships. Every edge points from the many side to the one side.</desc>
+<style>
+ .t   { font-size: 22px; font-weight: 700; fill: #0F172A; }
+ .sub { font-size: 13px; fill: #64748B; }
+ .sec { font-size: 11px; font-weight: 700; fill: #94A3B8; letter-spacing: 1.4px; }
+ .n   { font-size: 11.5px; font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace; }
+ .lg  { font-size: 11.5px; fill: #475569; }
+ .bd  { font-size: 11.5px; fill: #64748B; }
+ .inner { stroke: #64748B; stroke-width: 1.15; fill: none; opacity: .75; }
+ .left  { stroke: #94A3B8; stroke-width: 1.15; fill: none; opacity: .75; stroke-dasharray: 4 3; }
+</style>
+<rect width="1240" height="664" fill="#FFFFFF"/>
+<text class="t" x="32" y="44">The data model the agent reasons over</text>
+<text class="sub" x="32" y="68">23 tables across 6 business domains, joined by 34 declared relationships. Laid out so every edge runs left to right, from the many side to the one side.</text>
+<text class="sec" x="32" y="104">FACT TABLES</text>
+<text class="sec" x="1208" y="104" text-anchor="end">REFERENCE DATA</text>
+<path d="M126 100 H1034" stroke="#E2E8F0" stroke-width="1.2" fill="none"/>
+<path d="M1030 96 L1038 100 L1030 104 z" fill="#E2E8F0"/>
+<path class="inner" d="M388 316 C414 316 414 294 440 294"/>
+<path class="inner" d="M592 294 C618 294 618 294 644 294"/>
+<path class="inner" d="M388 316 C503 316 529 294 644 294"/>
+<path class="inner" d="M388 316 C687 316 753 404 1052 404"/>
+<path class="inner" d="M388 316 C687 316 753 448 1052 448"/>
+<path class="left" d="M388 316 C687 316 753 184 1052 184"/>
+<path class="left" d="M388 316 C503 316 529 250 644 250"/>
+<path class="inner" d="M184 338 C210 338 210 316 236 316"/>
+<path class="inner" d="M796 294 C822 294 822 228 848 228"/>
+<path class="inner" d="M1000 228 C1026 228 1026 272 1052 272"/>
+<path class="inner" d="M796 294 C822 294 822 184 848 184"/>
+<path class="inner" d="M796 294 C911 294 937 404 1052 404"/>
+<path class="left" d="M796 294 C911 294 937 360 1052 360"/>
+<path class="inner" d="M1000 184 C1026 184 1026 228 1052 228"/>
+<path class="left" d="M592 294 C799 294 845 316 1052 316"/>
+<path class="inner" d="M796 250 C822 250 822 184 848 184"/>
+<path class="inner" d="M184 294 C483 294 549 448 848 448"/>
+<path class="inner" d="M184 294 C210 294 210 316 236 316"/>
+<path class="left" d="M184 294 C483 294 549 360 848 360"/>
+<path class="left" d="M184 294 C483 294 549 316 848 316"/>
+<path class="inner" d="M1000 360 C1026 360 1026 404 1052 404"/>
+<path class="left" d="M1000 360 C1026 360 1026 360 1052 360"/>
+<path class="inner" d="M796 382 C822 382 822 360 848 360"/>
+<path class="left" d="M592 338 C618 338 618 294 644 294"/>
+<path class="inner" d="M1000 404 C1026 404 1026 404 1052 404"/>
+<path class="left" d="M796 338 C822 338 822 316 848 316"/>
+<path class="inner" d="M1000 272 C1026 272 1026 272 1052 272"/>
+<path class="left" d="M1000 316 C1026 316 1026 360 1052 360"/>
+<path class="inner" d="M184 294 C391 294 437 294 644 294"/>
+<path class="inner" d="M1000 448 C1026 448 1026 448 1052 448"/>
+<path class="inner" d="M1000 404 C1026 404 1026 448 1052 448"/>
+<path class="left" d="M796 382 C822 382 822 316 848 316"/>
+<path class="left" d="M592 338 C707 338 733 184 848 184"/>
+<path class="left" d="M592 338 C707 338 733 316 848 316"/>
+<rect x="848" y="169" width="152" height="30" rx="6" fill="#F5F3FF" stroke="#DDD6FE"/>
+<text class="n" x="924" y="188" text-anchor="middle" fill="#5B21B6">sites</text>
+<rect x="848" y="213" width="152" height="30" rx="6" fill="#FFFBEB" stroke="#FDE68A"/>
+<text class="n" x="924" y="232" text-anchor="middle" fill="#92400E">device_models</text>
+<rect x="848" y="257" width="152" height="30" rx="6" fill="#F1F5F9" stroke="#CBD5E1"/>
+<text class="n" x="924" y="276" text-anchor="middle" fill="#334155">purchase_orders</text>
+<rect x="848" y="301" width="152" height="30" rx="6" fill="#F5F3FF" stroke="#DDD6FE"/>
+<text class="n" x="924" y="320" text-anchor="middle" fill="#5B21B6">users</text>
+<rect x="848" y="345" width="152" height="30" rx="6" fill="#FFF1F2" stroke="#FECDD3"/>
+<text class="n" x="924" y="364" text-anchor="middle" fill="#9F1239">incidents</text>
+<rect x="848" y="389" width="152" height="30" rx="6" fill="#F0FDFA" stroke="#99F6E4"/>
+<text class="n" x="924" y="408" text-anchor="middle" fill="#115E59">slo_targets</text>
+<rect x="848" y="433" width="152" height="30" rx="6" fill="#FFF1F2" stroke="#FECDD3"/>
+<text class="n" x="924" y="452" text-anchor="middle" fill="#9F1239">alert_rules</text>
+<rect x="32" y="279" width="152" height="30" rx="6" fill="#FFF1F2" stroke="#FECDD3"/>
+<text class="n" x="108" y="298" text-anchor="middle" fill="#9F1239">alerts</text>
+<rect x="32" y="323" width="152" height="30" rx="6" fill="#EFF6FF" stroke="#BFDBFE"/>
+<text class="n" x="108" y="342" text-anchor="middle" fill="#1E3A8A">observation_metrics</text>
+<rect x="644" y="235" width="152" height="30" rx="6" fill="#EFF6FF" stroke="#BFDBFE"/>
+<text class="n" x="720" y="254" text-anchor="middle" fill="#1E3A8A">collectors</text>
+<rect x="644" y="279" width="152" height="30" rx="6" fill="#FFFBEB" stroke="#FDE68A"/>
+<text class="n" x="720" y="298" text-anchor="middle" fill="#92400E">devices</text>
+<rect x="644" y="323" width="152" height="30" rx="6" fill="#F0FDFA" stroke="#99F6E4"/>
+<text class="n" x="720" y="342" text-anchor="middle" fill="#115E59">audit_logs</text>
+<rect x="644" y="367" width="152" height="30" rx="6" fill="#FFF1F2" stroke="#FECDD3"/>
+<text class="n" x="720" y="386" text-anchor="middle" fill="#9F1239">incident_events</text>
+<rect x="1052" y="169" width="152" height="30" rx="6" fill="#EFF6FF" stroke="#BFDBFE"/>
+<text class="n" x="1128" y="188" text-anchor="middle" fill="#1E3A8A">failure_reasons</text>
+<rect x="1052" y="213" width="152" height="30" rx="6" fill="#F5F3FF" stroke="#DDD6FE"/>
+<text class="n" x="1128" y="232" text-anchor="middle" fill="#5B21B6">regions</text>
+<rect x="1052" y="257" width="152" height="30" rx="6" fill="#FFFBEB" stroke="#FDE68A"/>
+<text class="n" x="1128" y="276" text-anchor="middle" fill="#92400E">vendors</text>
+<rect x="1052" y="301" width="152" height="30" rx="6" fill="#FFFBEB" stroke="#FDE68A"/>
+<text class="n" x="1128" y="320" text-anchor="middle" fill="#92400E">interface_types</text>
+<rect x="1052" y="345" width="152" height="30" rx="6" fill="#F5F3FF" stroke="#DDD6FE"/>
+<text class="n" x="1128" y="364" text-anchor="middle" fill="#5B21B6">teams</text>
+<rect x="1052" y="389" width="152" height="30" rx="6" fill="#F5F3FF" stroke="#DDD6FE"/>
+<text class="n" x="1128" y="408" text-anchor="middle" fill="#5B21B6">environments</text>
+<rect x="1052" y="433" width="152" height="30" rx="6" fill="#EFF6FF" stroke="#BFDBFE"/>
+<text class="n" x="1128" y="452" text-anchor="middle" fill="#1E3A8A">observation_types</text>
+<rect x="440" y="279" width="152" height="30" rx="6" fill="#FFFBEB" stroke="#FDE68A"/>
+<text class="n" x="516" y="298" text-anchor="middle" fill="#92400E">interfaces</text>
+<rect x="440" y="323" width="152" height="30" rx="6" fill="#F0FDFA" stroke="#99F6E4"/>
+<text class="n" x="516" y="342" text-anchor="middle" fill="#115E59">maintenance_windows</text>
+<rect x="236" y="301" width="152" height="30" rx="6" fill="#EFF6FF" stroke="#BFDBFE"/>
+<text class="n" x="312" y="320" text-anchor="middle" fill="#1E3A8A" font-weight="700">observations</text>
+<text class="sec" x="32" y="510">SIX DOMAINS · 23 TABLES</text>
+<rect x="32" y="517" width="13" height="13" rx="3" fill="#EFF6FF" stroke="#BFDBFE"/>
+<text class="lg" x="52" y="528">observability <tspan fill="#94A3B8">5</tspan></text>
+<rect x="165" y="517" width="13" height="13" rx="3" fill="#FFFBEB" stroke="#FDE68A"/>
+<text class="lg" x="185" y="528">inventory <tspan fill="#94A3B8">5</tspan></text>
+<rect x="272" y="517" width="13" height="13" rx="3" fill="#FFF1F2" stroke="#FECDD3"/>
+<text class="lg" x="292" y="528">alerting <tspan fill="#94A3B8">4</tspan></text>
+<rect x="372" y="517" width="13" height="13" rx="3" fill="#F0FDFA" stroke="#99F6E4"/>
+<text class="lg" x="392" y="528">governance <tspan fill="#94A3B8">3</tspan></text>
+<rect x="486" y="517" width="13" height="13" rx="3" fill="#F5F3FF" stroke="#DDD6FE"/>
+<text class="lg" x="506" y="528">organisation <tspan fill="#94A3B8">5</tspan></text>
+<rect x="613" y="517" width="13" height="13" rx="3" fill="#F1F5F9" stroke="#CBD5E1"/>
+<text class="lg" x="633" y="528">procurement <tspan fill="#94A3B8">1</tspan></text>
+<path class="inner" d="M32 566 H72"/>
+<text class="lg" x="80" y="570">INNER — 21 of the 34</text>
+<path class="left" d="M250 566 H290"/>
+<text class="lg" x="298" y="570">LEFT — 13, where the right-hand row may not exist</text>
+<text class="bd" x="32" y="604">Every relationship is <tspan font-style="italic">many-to-one</tspan>, and the 34 foreign keys declared across the table files map one-to-one onto these 34 relationships — no key without a join, no join without a key.</text>
+<text class="bd" x="32" y="624">An invariant test fails the build the moment that stops being true, because a missing relationship would not raise an error: the join planner would quietly route around it and answer a different question.</text>
+</svg>
