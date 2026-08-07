@@ -1,0 +1,305 @@
+# Hardware inventory: what is deployed, who built it, and how it is wired.
+tables:
+  - name: vendors
+    description: Hardware vendors supplying network equipment.
+    business_definition: >-
+      A vendor is the manufacturer of a device. Vendor support tier and contract
+      expiry determine how quickly a hardware fault can be replaced.
+    domain: inventory
+    grain: one row per vendor
+    preferred_alias: v
+    primary_key: [vendor_id]
+    synonyms: [manufacturer, supplier, oem]
+    tags: [dimension, reference]
+    columns:
+      - name: vendor_id
+        data_type: INTEGER
+        description: Surrogate primary key for the vendor.
+        role: identifier
+        nullable: false
+        is_primary_key: true
+      - name: vendor_name
+        data_type: VARCHAR(128)
+        description: Registered vendor name.
+        role: dimension
+        nullable: false
+      - name: support_tier
+        data_type: VARCHAR(32)
+        description: Contracted support level with the vendor.
+        role: dimension
+        allowed_values: [platinum, gold, silver, bronze]
+      - name: contract_expiry_date
+        data_type: DATE
+        description: Date the current support contract lapses.
+        role: timestamp
+      - name: created_at
+        data_type: TIMESTAMP
+        description: When the vendor record was created.
+        role: timestamp
+        nullable: false
+
+  - name: device_models
+    description: Hardware models, each supplied by exactly one vendor.
+    business_definition: >-
+      A device model is a specific product line such as a top-of-rack switch or an
+      edge router. End-of-support dates on a model drive refresh planning.
+    domain: inventory
+    grain: one row per hardware model
+    preferred_alias: dm
+    primary_key: [model_id]
+    synonyms: [hardware model, product, sku, platform]
+    tags: [dimension, reference]
+    foreign_keys:
+      - column: vendor_id
+        references_table: vendors
+        references_column: vendor_id
+        description: The vendor that manufactures this model.
+    columns:
+      - name: model_id
+        data_type: INTEGER
+        description: Surrogate primary key for the model.
+        role: identifier
+        nullable: false
+        is_primary_key: true
+      - name: vendor_id
+        data_type: INTEGER
+        description: Foreign key to the manufacturing vendor.
+        role: identifier
+        nullable: false
+      - name: model_name
+        data_type: VARCHAR(128)
+        description: Vendor product name for the model.
+        role: dimension
+        nullable: false
+      - name: device_category
+        data_type: VARCHAR(32)
+        description: Broad category the hardware falls into.
+        role: dimension
+        allowed_values: [router, switch, firewall, load_balancer, access_point]
+      - name: end_of_support_date
+        data_type: DATE
+        description: Date after which the vendor no longer supports the model.
+        role: timestamp
+      - name: created_at
+        data_type: TIMESTAMP
+        description: When the model record was created.
+        role: timestamp
+        nullable: false
+
+  - name: devices
+    description: Physical network devices deployed across sites and environments.
+    business_definition: >-
+      A device is an individually managed piece of network hardware. It is the unit
+      of ownership, maintenance and hardware replacement, and it is the parent of
+      every network interface.
+    domain: inventory
+    grain: one row per physical device
+    preferred_alias: d
+    primary_key: [device_id]
+    synonyms: [node, host, appliance, equipment, box]
+    tags: [dimension, core]
+    foreign_keys:
+      - column: model_id
+        references_table: device_models
+        references_column: model_id
+        description: The hardware model of this device.
+      - column: site_id
+        references_table: sites
+        references_column: site_id
+        description: The site the device is racked in.
+      - column: environment_id
+        references_table: environments
+        references_column: environment_id
+        description: The deployment environment the device serves.
+      - column: owner_team_id
+        references_table: teams
+        references_column: team_id
+        description: The team accountable for the device.
+    columns:
+      - name: device_id
+        data_type: INTEGER
+        description: Surrogate primary key for the device.
+        role: identifier
+        nullable: false
+        is_primary_key: true
+      - name: device_name
+        data_type: VARCHAR(128)
+        description: Hostname of the device following the site naming convention.
+        role: dimension
+        nullable: false
+        synonyms: [hostname, device]
+        example_values: [iad1-core-01, sfo2-edge-03]
+      - name: model_id
+        data_type: INTEGER
+        description: Foreign key to the hardware model.
+        role: identifier
+        nullable: false
+      - name: site_id
+        data_type: INTEGER
+        description: Foreign key to the hosting site.
+        role: identifier
+        nullable: false
+      - name: environment_id
+        data_type: INTEGER
+        description: Foreign key to the deployment environment.
+        role: identifier
+        nullable: false
+      - name: owner_team_id
+        data_type: INTEGER
+        description: Foreign key to the owning team.
+        role: identifier
+      - name: serial_number
+        data_type: VARCHAR(64)
+        description: Vendor serial number, unique per device.
+        role: descriptive
+      - name: management_ip
+        data_type: VARCHAR(45)
+        description: Out-of-band management IP address.
+        role: descriptive
+      - name: device_status
+        data_type: VARCHAR(24)
+        description: Lifecycle state of the device.
+        role: dimension
+        nullable: false
+        allowed_values: [ACTIVE, MAINTENANCE, DEGRADED, DECOMMISSIONED]
+        synonyms: [status, state]
+        value_synonyms:
+          ACTIVE: [active, in service, live]
+          MAINTENANCE: [maintenance, under maintenance]
+          DEGRADED: [degraded, impaired]
+          DECOMMISSIONED: [decommissioned, retired, removed from service]
+      - name: commissioned_at
+        data_type: TIMESTAMP
+        description: When the device entered service.
+        role: timestamp
+      - name: created_at
+        data_type: TIMESTAMP
+        description: When the device record was created.
+        role: timestamp
+        nullable: false
+    default_filters:
+      # Retired hardware stops reporting, so leaving it in operational results
+      # inflates failure counts and depresses availability. See RULE-015.
+      - "devices.device_status <> 'DECOMMISSIONED'"
+
+  - name: interface_types
+    description: Catalogue of physical and logical interface types.
+    business_definition: >-
+      An interface type describes the media and nominal speed of a port, for example
+      10 gigabit fibre. It normalises capacity reporting across vendors.
+    domain: inventory
+    grain: one row per interface type
+    primary_key: [interface_type_id]
+    synonyms: [port type, media type, link type]
+    tags: [dimension, reference]
+    columns:
+      - name: interface_type_id
+        data_type: INTEGER
+        description: Surrogate primary key for the interface type.
+        role: identifier
+        nullable: false
+        is_primary_key: true
+      - name: type_name
+        data_type: VARCHAR(64)
+        description: Human readable name of the interface type.
+        role: dimension
+        nullable: false
+        example_values: [10GBASE-SR, 100GBASE-LR4, 1000BASE-T]
+      - name: media
+        data_type: VARCHAR(32)
+        description: Physical medium carrying the signal.
+        role: dimension
+        allowed_values: [fibre, copper, virtual, wireless]
+      - name: nominal_speed_mbps
+        data_type: INTEGER
+        description: Rated line speed of the interface type.
+        role: measure
+        unit: mbps
+
+  - name: interfaces
+    description: Network interfaces (ports) belonging to devices.
+    business_definition: >-
+      An interface is an individual network port on a device. It is the finest grain
+      at which link health is monitored, and it is the entity most failure analysis
+      is grouped by.
+    domain: inventory
+    grain: one row per interface on a device
+    preferred_alias: i
+    primary_key: [interface_id]
+    synonyms: [port, link, nic, network interface]
+    tags: [dimension, core]
+    foreign_keys:
+      - column: device_id
+        references_table: devices
+        references_column: device_id
+        description: The device this interface belongs to.
+      - column: interface_type_id
+        references_table: interface_types
+        references_column: interface_type_id
+        description: The physical type of the interface.
+    columns:
+      - name: interface_id
+        data_type: INTEGER
+        description: Surrogate primary key for the interface.
+        role: identifier
+        nullable: false
+        is_primary_key: true
+      - name: device_id
+        data_type: INTEGER
+        description: Foreign key to the parent device.
+        role: identifier
+        nullable: false
+      - name: interface_type_id
+        data_type: INTEGER
+        description: Foreign key to the interface type.
+        role: identifier
+      - name: interface_name
+        data_type: VARCHAR(64)
+        description: Port name as reported by the device operating system.
+        role: dimension
+        nullable: false
+        synonyms: [interface, port name]
+        example_values: [Ethernet1/1, xe-0/0/3, GigabitEthernet0/1]
+      - name: description
+        data_type: TEXT
+        description: Operator supplied description of what the port connects to.
+        role: descriptive
+      - name: admin_status
+        data_type: VARCHAR(16)
+        description: Administrative state configured by an operator.
+        role: dimension
+        nullable: false
+        allowed_values: [UP, DOWN]
+      - name: oper_status
+        data_type: VARCHAR(16)
+        description: Operational state currently reported by the device.
+        role: dimension
+        nullable: false
+        allowed_values: [UP, DOWN, TESTING, UNKNOWN]
+        synonyms: [operational status, link state]
+        # An unqualified "down" means the link is really down, not that an operator
+        # configured it that way. Curating the wording here is what stops the same
+        # word from also filtering admin_status, which declares DOWN as well.
+        value_synonyms:
+          DOWN: [down, offline, dead, link down, not up]
+          UP: [up, online, live]
+      - name: speed_mbps
+        data_type: INTEGER
+        description: Negotiated speed of the link.
+        role: measure
+        unit: mbps
+      - name: mtu
+        data_type: INTEGER
+        description: Maximum transmission unit configured on the interface.
+        role: measure
+        unit: bytes
+      - name: is_uplink
+        data_type: BOOLEAN
+        description: True when the interface carries traffic towards the core.
+        role: flag
+        nullable: false
+      - name: created_at
+        data_type: TIMESTAMP
+        description: When the interface record was created.
+        role: timestamp
+        nullable: false

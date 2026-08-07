@@ -1,0 +1,305 @@
+# Telemetry collection and the central observations fact table.
+tables:
+  - name: collectors
+    description: Polling agents that gather telemetry from devices at a site.
+    business_definition: >-
+      A collector is the software agent responsible for polling devices and writing
+      observations. A stale collector heartbeat usually explains a sudden gap in
+      observation volume.
+    domain: observability
+    grain: one row per collector agent
+    primary_key: [collector_id]
+    synonyms: [agent, poller, probe, telemetry agent]
+    tags: [dimension, reference]
+    foreign_keys:
+      - column: site_id
+        references_table: sites
+        references_column: site_id
+        description: The site the collector is deployed at.
+    columns:
+      - name: collector_id
+        data_type: INTEGER
+        description: Surrogate primary key for the collector.
+        role: identifier
+        nullable: false
+        is_primary_key: true
+      - name: collector_name
+        data_type: VARCHAR(128)
+        description: Hostname of the collector agent.
+        role: dimension
+        nullable: false
+      - name: site_id
+        data_type: INTEGER
+        description: Foreign key to the site the collector serves.
+        role: identifier
+        nullable: false
+      - name: collector_version
+        data_type: VARCHAR(32)
+        description: Software version running on the collector.
+        role: dimension
+      - name: poll_interval_seconds
+        data_type: INTEGER
+        description: How often the collector polls its devices.
+        role: measure
+        unit: seconds
+      - name: collector_status
+        data_type: VARCHAR(24)
+        description: Current health of the collector agent.
+        role: dimension
+        nullable: false
+        allowed_values: [HEALTHY, DEGRADED, OFFLINE]
+      - name: last_heartbeat_at
+        data_type: TIMESTAMP
+        description: Timestamp of the most recent heartbeat received.
+        role: timestamp
+      - name: created_at
+        data_type: TIMESTAMP
+        description: When the collector record was created.
+        role: timestamp
+        nullable: false
+
+  - name: observation_types
+    description: Catalogue of the kinds of checks that produce observations.
+    business_definition: >-
+      An observation type describes what was measured, for example a link state poll,
+      a latency probe or a packet loss sample. It categorises every observation.
+    domain: observability
+    grain: one row per observation type
+    preferred_alias: ot
+    primary_key: [observation_type_id]
+    synonyms: [check type, probe type, measurement type]
+    tags: [dimension, reference]
+    columns:
+      - name: observation_type_id
+        data_type: INTEGER
+        description: Surrogate primary key for the observation type.
+        role: identifier
+        nullable: false
+        is_primary_key: true
+      - name: type_code
+        data_type: VARCHAR(32)
+        description: Machine readable code for the observation type.
+        role: dimension
+        nullable: false
+        allowed_values:
+          [LINK_STATE, LATENCY_PROBE, PACKET_LOSS, THROUGHPUT, ERROR_COUNTER, BGP_SESSION]
+      - name: type_name
+        data_type: VARCHAR(64)
+        description: Human readable name of the observation type.
+        role: dimension
+        nullable: false
+      - name: category
+        data_type: VARCHAR(32)
+        description: Broad grouping of the observation type.
+        role: dimension
+        allowed_values: [availability, performance, capacity, routing]
+      - name: description
+        data_type: TEXT
+        description: What the check measures and how it is evaluated.
+        role: descriptive
+
+  - name: failure_reasons
+    description: Normalised catalogue of why an observation failed.
+    business_definition: >-
+      A failure reason classifies a failed observation into an actionable bucket such
+      as timeout, authentication failure or link down. Only failed observations carry
+      a failure reason.
+    domain: observability
+    grain: one row per failure reason
+    preferred_alias: fr
+    primary_key: [failure_reason_id]
+    synonyms: [error reason, failure cause, error code, root cause]
+    tags: [dimension, reference]
+    columns:
+      - name: failure_reason_id
+        data_type: INTEGER
+        description: Surrogate primary key for the failure reason.
+        role: identifier
+        nullable: false
+        is_primary_key: true
+      - name: reason_code
+        data_type: VARCHAR(48)
+        description: Machine readable failure code.
+        role: dimension
+        nullable: false
+        allowed_values:
+          [TIMEOUT, AUTH_FAILED, LINK_DOWN, HIGH_LATENCY, PACKET_LOSS, SNMP_ERROR, UNREACHABLE]
+      - name: reason_name
+        data_type: VARCHAR(128)
+        description: Human readable failure reason.
+        role: dimension
+        nullable: false
+      - name: severity
+        data_type: VARCHAR(16)
+        description: How serious this failure reason is considered.
+        role: dimension
+        nullable: false
+        allowed_values: [critical, high, medium, low]
+      - name: is_actionable
+        data_type: BOOLEAN
+        description: True when an operator can remediate this failure directly.
+        role: flag
+        nullable: false
+      - name: description
+        data_type: TEXT
+        description: Guidance on how to interpret and resolve the failure.
+        role: descriptive
+
+  - name: observations
+    description: >-
+      Central fact table holding every monitoring observation collected from network
+      interfaces, including its success or failure outcome.
+    business_definition: >-
+      An observation is a single monitoring result for one interface at one point in
+      time. This is the primary fact table of the platform: failure counts, success
+      rates and time-series trends are all derived from it. An observation is
+      considered failed when its status is FAILED.
+    domain: observability
+    grain: one row per monitoring observation of one interface at one timestamp
+    preferred_alias: o
+    primary_key: [observation_id]
+    synonyms: [observation, measurement, check result, sample, poll result, reading]
+    tags: [fact, core]
+    foreign_keys:
+      - column: interface_id
+        references_table: interfaces
+        references_column: interface_id
+        description: The interface the observation was taken from.
+      - column: device_id
+        references_table: devices
+        references_column: device_id
+        description: Denormalised link to the parent device for fast filtering.
+      - column: environment_id
+        references_table: environments
+        references_column: environment_id
+        description: Denormalised link to the environment for fast slicing.
+      - column: observation_type_id
+        references_table: observation_types
+        references_column: observation_type_id
+        description: The kind of check that produced the observation.
+      - column: collector_id
+        references_table: collectors
+        references_column: collector_id
+        description: The collector agent that recorded the observation.
+      - column: failure_reason_id
+        references_table: failure_reasons
+        references_column: failure_reason_id
+        description: Why the observation failed; null for successful observations.
+    columns:
+      - name: observation_id
+        data_type: BIGINT
+        description: Surrogate primary key for the observation.
+        role: identifier
+        nullable: false
+        is_primary_key: true
+      - name: interface_id
+        data_type: INTEGER
+        description: Foreign key to the observed interface.
+        role: identifier
+        nullable: false
+      - name: device_id
+        data_type: INTEGER
+        description: Foreign key to the observed device.
+        role: identifier
+        nullable: false
+      - name: environment_id
+        data_type: INTEGER
+        description: Foreign key to the environment the observation belongs to.
+        role: identifier
+        nullable: false
+      - name: observation_type_id
+        data_type: INTEGER
+        description: Foreign key to the observation type.
+        role: identifier
+        nullable: false
+      - name: collector_id
+        data_type: INTEGER
+        description: Foreign key to the collector that produced the observation.
+        role: identifier
+      - name: status
+        data_type: VARCHAR(16)
+        description: >-
+          Outcome of the observation. FAILED marks a failed observation, SUCCESS a
+          healthy one, DEGRADED a partial success and TIMEOUT a non-responding target.
+        role: dimension
+        nullable: false
+        allowed_values: [SUCCESS, FAILED, DEGRADED, TIMEOUT]
+        synonyms: [outcome, result, state]
+        value_synonyms:
+          FAILED: [failed, failure, failures, failing, error, errors, unsuccessful, broken]
+          SUCCESS: [success, successful, healthy, passing, ok, good]
+          DEGRADED: [degraded, partial, impaired]
+          TIMEOUT: [timeout, timeouts, timed out, unresponsive]
+      - name: failure_reason_id
+        data_type: INTEGER
+        description: Foreign key to the failure reason; null when the check succeeded.
+        role: identifier
+      - name: observed_at
+        data_type: TIMESTAMP
+        description: >-
+          When the observation was taken. This is the column to use for every
+          time-window filter such as "in the last 24 hours".
+        role: timestamp
+        nullable: false
+        synonyms: [timestamp, observation time, collected at, event time]
+      - name: duration_ms
+        data_type: INTEGER
+        description: How long the check took to complete.
+        role: measure
+        unit: milliseconds
+      - name: created_at
+        data_type: TIMESTAMP
+        description: When the row was written to the warehouse.
+        role: timestamp
+        nullable: false
+
+  - name: observation_metrics
+    description: Numeric metric samples attached to an observation.
+    business_definition: >-
+      A metric row carries one named numeric value produced by an observation, such as
+      round trip latency or packet loss percentage. One observation can emit several
+      metrics.
+    domain: observability
+    grain: one row per metric emitted by one observation
+    preferred_alias: om
+    primary_key: [metric_id]
+    synonyms: [metric, sample, datapoint, measurement value]
+    tags: [fact]
+    foreign_keys:
+      - column: observation_id
+        references_table: observations
+        references_column: observation_id
+        description: The observation this metric was emitted by.
+    columns:
+      - name: metric_id
+        data_type: BIGINT
+        description: Surrogate primary key for the metric sample.
+        role: identifier
+        nullable: false
+        is_primary_key: true
+      - name: observation_id
+        data_type: BIGINT
+        description: Foreign key to the parent observation.
+        role: identifier
+        nullable: false
+      - name: metric_name
+        data_type: VARCHAR(64)
+        description: Name of the metric being reported.
+        role: dimension
+        nullable: false
+        allowed_values:
+          [latency_ms, packet_loss_pct, throughput_mbps, error_count, jitter_ms]
+      - name: metric_value
+        data_type: DECIMAL(18,4)
+        description: Numeric value of the metric.
+        role: measure
+        nullable: false
+      - name: metric_unit
+        data_type: VARCHAR(16)
+        description: Unit the metric value is expressed in.
+        role: dimension
+      - name: recorded_at
+        data_type: TIMESTAMP
+        description: When the metric value was recorded.
+        role: timestamp
+        nullable: false

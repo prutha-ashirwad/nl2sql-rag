@@ -1,0 +1,288 @@
+# Alert evaluation and incident management.
+tables:
+  - name: alert_rules
+    description: Threshold rules evaluated against observations to raise alerts.
+    business_definition: >-
+      An alert rule defines the condition under which an observation becomes an alert,
+      for example latency above 200 ms sustained over five minutes. Disabled rules are
+      retained for audit but never fire.
+    domain: alerting
+    grain: one row per alert rule
+    preferred_alias: ar
+    primary_key: [rule_id]
+    synonyms: [rule, monitor, detection rule, threshold]
+    tags: [dimension, reference]
+    foreign_keys:
+      - column: observation_type_id
+        references_table: observation_types
+        references_column: observation_type_id
+        description: The observation type this rule evaluates.
+    columns:
+      - name: rule_id
+        data_type: INTEGER
+        description: Surrogate primary key for the alert rule.
+        role: identifier
+        nullable: false
+        is_primary_key: true
+      - name: rule_name
+        data_type: VARCHAR(128)
+        description: Human readable rule name.
+        role: dimension
+        nullable: false
+      - name: observation_type_id
+        data_type: INTEGER
+        description: Foreign key to the observation type evaluated.
+        role: identifier
+        nullable: false
+      - name: severity
+        data_type: VARCHAR(16)
+        description: Severity assigned to alerts raised by this rule.
+        role: dimension
+        nullable: false
+        allowed_values: [critical, high, medium, low]
+      - name: threshold_value
+        data_type: DECIMAL(18,4)
+        description: Numeric threshold the rule compares against.
+        role: measure
+      - name: comparison_operator
+        data_type: VARCHAR(8)
+        description: Operator applied between the metric and the threshold.
+        role: dimension
+        allowed_values: [">", ">=", "<", "<=", "=="]
+      - name: evaluation_window_minutes
+        data_type: INTEGER
+        description: Window over which the rule aggregates before firing.
+        role: measure
+        unit: minutes
+      - name: is_enabled
+        data_type: BOOLEAN
+        description: False when the rule has been muted.
+        role: flag
+        nullable: false
+      - name: created_at
+        data_type: TIMESTAMP
+        description: When the rule was created.
+        role: timestamp
+        nullable: false
+    default_filters:
+      - "alert_rules.is_enabled = TRUE"
+
+  - name: alerts
+    description: Alerts raised when an observation breaches an alert rule.
+    business_definition: >-
+      An alert is a single firing of a rule against one observation. Alerts are the
+      operator-facing signal and can be grouped into an incident when several relate
+      to the same underlying problem.
+    domain: alerting
+    grain: one row per alert firing
+    preferred_alias: a
+    primary_key: [alert_id]
+    synonyms: [alarm, notification, page, trigger]
+    tags: [fact, core]
+    foreign_keys:
+      - column: rule_id
+        references_table: alert_rules
+        references_column: rule_id
+        description: The rule that raised the alert.
+      - column: observation_id
+        references_table: observations
+        references_column: observation_id
+        description: The observation that breached the rule.
+      - column: device_id
+        references_table: devices
+        references_column: device_id
+        description: The device the alert relates to.
+      - column: acknowledged_by_user_id
+        references_table: users
+        references_column: user_id
+        description: The user who acknowledged the alert.
+      - column: incident_id
+        references_table: incidents
+        references_column: incident_id
+        description: The incident this alert was rolled up into, if any.
+    columns:
+      - name: alert_id
+        data_type: BIGINT
+        description: Surrogate primary key for the alert.
+        role: identifier
+        nullable: false
+        is_primary_key: true
+      - name: rule_id
+        data_type: INTEGER
+        description: Foreign key to the alert rule that fired.
+        role: identifier
+        nullable: false
+      - name: observation_id
+        data_type: BIGINT
+        description: Foreign key to the triggering observation.
+        role: identifier
+        nullable: false
+      - name: device_id
+        data_type: INTEGER
+        description: Foreign key to the affected device.
+        role: identifier
+        nullable: false
+      - name: incident_id
+        data_type: INTEGER
+        description: Foreign key to the parent incident; null when unlinked.
+        role: identifier
+      - name: severity
+        data_type: VARCHAR(16)
+        description: Severity of this alert firing.
+        role: dimension
+        nullable: false
+        allowed_values: [critical, high, medium, low]
+      - name: alert_status
+        data_type: VARCHAR(24)
+        description: Workflow state of the alert.
+        role: dimension
+        nullable: false
+        allowed_values: [OPEN, ACKNOWLEDGED, RESOLVED, SUPPRESSED]
+        synonyms: [status, state]
+        value_synonyms:
+          OPEN: [open, unacknowledged, active, firing, pending]
+          ACKNOWLEDGED: [acknowledged, acked, claimed]
+          RESOLVED: [resolved, cleared, closed]
+          SUPPRESSED: [suppressed, muted, silenced]
+      - name: triggered_at
+        data_type: TIMESTAMP
+        description: When the alert fired. Use this for alert time-window filters.
+        role: timestamp
+        nullable: false
+        synonyms: [fired at, raised at, alert time]
+      - name: acknowledged_at
+        data_type: TIMESTAMP
+        description: When an operator acknowledged the alert.
+        role: timestamp
+      - name: acknowledged_by_user_id
+        data_type: INTEGER
+        description: Foreign key to the acknowledging user.
+        role: identifier
+      - name: resolved_at
+        data_type: TIMESTAMP
+        description: When the alert cleared or was closed.
+        role: timestamp
+
+  - name: incidents
+    description: Incidents grouping related alerts under a single investigation.
+    business_definition: >-
+      An incident is the unit of coordinated response. It aggregates alerts that share
+      a root cause, carries an owning team and tracks time to resolution.
+    domain: alerting
+    grain: one row per incident
+    preferred_alias: inc
+    primary_key: [incident_id]
+    synonyms: [outage, case, ticket, investigation]
+    tags: [fact, core]
+    foreign_keys:
+      - column: environment_id
+        references_table: environments
+        references_column: environment_id
+        description: The environment the incident affects.
+      - column: owner_team_id
+        references_table: teams
+        references_column: team_id
+        description: The team leading the response.
+    columns:
+      - name: incident_id
+        data_type: INTEGER
+        description: Surrogate primary key for the incident.
+        role: identifier
+        nullable: false
+        is_primary_key: true
+      - name: incident_key
+        data_type: VARCHAR(32)
+        description: Human friendly incident reference.
+        role: dimension
+        nullable: false
+        example_values: [INC-2024-0143, INC-2024-0144]
+      - name: title
+        data_type: VARCHAR(255)
+        description: Short summary of the incident.
+        role: descriptive
+        nullable: false
+      - name: severity
+        data_type: VARCHAR(16)
+        description: Assessed severity of the incident.
+        role: dimension
+        nullable: false
+        allowed_values: [sev1, sev2, sev3, sev4]
+      - name: incident_status
+        data_type: VARCHAR(24)
+        description: Current workflow state of the incident.
+        role: dimension
+        nullable: false
+        allowed_values: [OPEN, INVESTIGATING, MITIGATED, RESOLVED, CLOSED]
+      - name: environment_id
+        data_type: INTEGER
+        description: Foreign key to the affected environment.
+        role: identifier
+        nullable: false
+      - name: owner_team_id
+        data_type: INTEGER
+        description: Foreign key to the responding team.
+        role: identifier
+      - name: opened_at
+        data_type: TIMESTAMP
+        description: When the incident was declared.
+        role: timestamp
+        nullable: false
+      - name: resolved_at
+        data_type: TIMESTAMP
+        description: When the incident was resolved; null while still open.
+        role: timestamp
+      - name: resolution_summary
+        data_type: TEXT
+        description: Post-incident summary of the fix applied.
+        role: descriptive
+
+  - name: incident_events
+    description: Chronological timeline entries recorded against an incident.
+    business_definition: >-
+      An incident event is one entry on the incident timeline, such as a status change
+      or an operator note. Together they form the audit trail of the response.
+    domain: alerting
+    grain: one row per timeline entry on an incident
+    primary_key: [incident_event_id]
+    synonyms: [timeline entry, incident update, incident note]
+    tags: [fact]
+    foreign_keys:
+      - column: incident_id
+        references_table: incidents
+        references_column: incident_id
+        description: The incident this timeline entry belongs to.
+      - column: actor_user_id
+        references_table: users
+        references_column: user_id
+        description: The user who recorded the entry.
+    columns:
+      - name: incident_event_id
+        data_type: BIGINT
+        description: Surrogate primary key for the timeline entry.
+        role: identifier
+        nullable: false
+        is_primary_key: true
+      - name: incident_id
+        data_type: INTEGER
+        description: Foreign key to the parent incident.
+        role: identifier
+        nullable: false
+      - name: event_type
+        data_type: VARCHAR(32)
+        description: Kind of timeline entry recorded.
+        role: dimension
+        nullable: false
+        allowed_values: [status_change, comment, escalation, mitigation, resolution]
+      - name: event_description
+        data_type: TEXT
+        description: Detail of what happened at this point in the timeline.
+        role: descriptive
+      - name: actor_user_id
+        data_type: INTEGER
+        description: Foreign key to the acting user.
+        role: identifier
+      - name: occurred_at
+        data_type: TIMESTAMP
+        description: When the timeline entry occurred.
+        role: timestamp
+        nullable: false

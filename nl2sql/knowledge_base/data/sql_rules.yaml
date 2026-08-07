@@ -1,0 +1,157 @@
+# SQL generation rules.
+#
+# Rules are retrieved alongside schema context and injected into the prompt, and the
+# validator enforces the mechanically checkable ones. Adding a rule here changes
+# generation behaviour without touching any agent code.
+rules:
+  - id: RULE-001
+    category: safety
+    rule: >-
+      Generate read-only statements. Only SELECT and WITH (common table expression)
+      queries are permitted. Never emit INSERT, UPDATE, DELETE, MERGE, DROP, ALTER,
+      TRUNCATE, CREATE or GRANT.
+    rationale: >-
+      The agent runs against a production replica; any write would be unrecoverable.
+    example: "SELECT observation_id FROM observations LIMIT 10"
+
+  - id: RULE-002
+    category: safety
+    rule: >-
+      Emit exactly one statement. Do not chain statements with semicolons and do not
+      append trailing commentary after the query.
+    rationale: Multiple statements are a common vector for accidental data modification.
+
+  - id: RULE-003
+    category: performance
+    rule: >-
+      Add a LIMIT clause only when the question asks for a specific number of rows,
+      such as "top 5" or "first 20". Otherwise emit no LIMIT at all, so the query
+      returns every matching row. Never invent a limit the question did not ask for.
+    rationale: >-
+      A question without a stated row count is asking for the complete answer, and a
+      silently truncated result reads as the whole picture. The executor stops
+      fetching at MAX_RESULT_ROWS and flags the result as truncated, so an unbounded
+      query is already bounded in practice.
+    applies_to: [observations, observation_metrics, alerts, audit_logs]
+    example: "SELECT observation_id, observed_at FROM observations WHERE status = 'FAILED' ORDER BY observed_at DESC LIMIT 5"
+
+  - id: RULE-004
+    category: naming
+    rule: >-
+      Reference tables and columns exactly as they are declared in the Knowledge Base,
+      in lower snake_case. Never invent, pluralise or abbreviate a name.
+    rationale: Hallucinated identifiers are the single largest source of invalid SQL.
+
+  - id: RULE-005
+    category: naming
+    rule: >-
+      Give every table a short alias and qualify every column with that alias. Use the
+      first letters of the table name, for example `observations o`, `interfaces i`,
+      `devices d`, `environments e`.
+    rationale: >-
+      Several tables share column names such as `status` and `created_at`; unqualified
+      references are ambiguous and fail at parse time.
+    example: >-
+      SELECT o.observation_id, i.interface_name FROM observations o
+      INNER JOIN interfaces i ON o.interface_id = i.interface_id
+
+  - id: RULE-006
+    category: joins
+    rule: >-
+      Join tables only along a relationship declared in the Knowledge Base, and use the
+      join type that relationship specifies. Never join on columns that merely share a
+      name.
+    rationale: >-
+      Ad-hoc joins produce silent cartesian products that inflate every aggregate.
+
+  - id: RULE-007
+    category: joins
+    rule: >-
+      Use LEFT JOIN when the foreign key is nullable, most importantly
+      observations.failure_reason_id, alerts.incident_id and devices.owner_team_id.
+    rationale: >-
+      An INNER JOIN on a nullable key silently discards rows, for example dropping
+      every successful observation from a status breakdown.
+    applies_to: [observations, alerts, devices]
+
+  - id: RULE-008
+    category: filters
+    rule: >-
+      Filter enumerated columns using the exact uppercase values declared in the
+      Knowledge Base. A failed observation is `o.status = 'FAILED'`, never 'failed',
+      'Fail' or 'FAILURE'.
+    rationale: String comparison is case sensitive; a mismatched literal returns zero rows.
+    applies_to: [observations, alerts, devices, interfaces, incidents]
+
+  - id: RULE-009
+    category: time
+    rule: >-
+      Apply relative time windows to observations.observed_at, alerts.triggered_at or
+      incidents.opened_at as appropriate. Express the window as an interval relative to
+      the current time rather than a hard-coded date.
+    rationale: >-
+      Hard-coded dates make a saved query silently wrong the day after it was written.
+    applies_to: [observations, alerts, incidents]
+    example: "WHERE o.observed_at >= datetime('now', '-24 hours')"
+
+  - id: RULE-010
+    category: aggregation
+    rule: >-
+      Every non-aggregated column in the SELECT list of a grouped query must also appear
+      in the GROUP BY clause.
+    rationale: Required by standard SQL; permissive engines otherwise return arbitrary rows.
+
+  - id: RULE-011
+    category: aggregation
+    rule: >-
+      When ranking by a computed aggregate, give the aggregate an explicit alias and
+      order by that alias descending, then apply a LIMIT.
+    rationale: >-
+      A named alias makes ranking queries readable and lets the result be reused in
+      an outer query without recomputation.
+    example: >-
+      SELECT i.interface_name, COUNT(*) AS failure_count FROM observations o
+      INNER JOIN interfaces i ON o.interface_id = i.interface_id
+      WHERE o.status = 'FAILED' GROUP BY i.interface_name
+      ORDER BY failure_count DESC LIMIT 10
+
+  - id: RULE-012
+    category: aggregation
+    rule: >-
+      Filter rows before aggregating by placing row-level predicates in WHERE, and use
+      HAVING only for predicates on aggregate expressions.
+    rationale: Predicates in HAVING that belong in WHERE force needless full scans.
+
+  - id: RULE-013
+    category: correctness
+    rule: >-
+      Compute a success rate as
+      100.0 * SUM(CASE WHEN o.status = 'SUCCESS' THEN 1 ELSE 0 END) / COUNT(*),
+      keeping the numerator a floating point literal.
+    rationale: Integer division truncates the result to zero on most engines.
+    applies_to: [observations]
+
+  - id: RULE-014
+    category: correctness
+    rule: >-
+      Select named columns rather than `SELECT *` whenever the question implies a
+      specific set of fields, and always prefer descriptive columns such as
+      interface_name or environment_name over raw surrogate keys in the output.
+    rationale: >-
+      Surrogate keys are meaningless to a reader; the descriptive column is what the
+      question was actually asking for.
+
+  - id: RULE-015
+    category: correctness
+    rule: >-
+      Apply every filter listed under a table's "Default filters" whenever that table
+      is joined, unless the question explicitly asks about the excluded rows. In
+      particular, always exclude decommissioned devices and inactive sites from
+      operational reporting.
+    rationale: >-
+      Retired hardware stops reporting and would otherwise appear as a permanent
+      failure in availability metrics. Skipping these filters does not raise an
+      error, it just returns inflated counts, so it has to be applied every time.
+    applies_to: [devices, sites, alert_rules, slo_targets]
+    example: >-
+      WHERE d.device_status <> 'DECOMMISSIONED' AND s.is_active = TRUE

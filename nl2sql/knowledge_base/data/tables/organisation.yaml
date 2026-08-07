@@ -1,0 +1,264 @@
+# Organisational and geographic reference data.
+# These tables are small, slow-changing dimensions used to slice every fact table.
+tables:
+  - name: environments
+    description: >-
+      Deployment environments that infrastructure belongs to, such as production,
+      staging and development.
+    business_definition: >-
+      An environment is the isolated deployment stage a device or workload runs in.
+      Reporting is almost always split by environment because production incidents
+      carry a different urgency to non-production ones.
+    domain: organisation
+    grain: one row per deployment environment
+    preferred_alias: e
+    primary_key: [environment_id]
+    synonyms: [env, environments, deployment stage, stage]
+    tags: [dimension, reference]
+    columns:
+      - name: environment_id
+        data_type: INTEGER
+        description: Surrogate primary key for the environment.
+        role: identifier
+        nullable: false
+        is_primary_key: true
+      - name: environment_code
+        data_type: VARCHAR(16)
+        description: Short uppercase code for the environment.
+        role: dimension
+        nullable: false
+        allowed_values: [PROD, STAGE, DEV, QA, DR]
+        synonyms: [env code]
+        value_synonyms:
+          PROD: [production, prod, live]
+          STAGE: [staging, stage, pre-production]
+          DEV: [development, dev]
+          QA: [qa, test, testing]
+          DR: [disaster recovery, dr]
+      - name: environment_name
+        data_type: VARCHAR(64)
+        description: Human readable environment name.
+        role: dimension
+        nullable: false
+        synonyms: [environment, env name]
+        example_values: [Production, Staging, Development]
+      - name: tier
+        data_type: VARCHAR(16)
+        description: Criticality tier used to prioritise incident response.
+        role: dimension
+        allowed_values: [tier_1, tier_2, tier_3]
+      - name: is_production
+        data_type: BOOLEAN
+        description: True when the environment serves live customer traffic.
+        role: flag
+        nullable: false
+      - name: description
+        data_type: TEXT
+        description: Free text notes about the environment.
+        role: descriptive
+      - name: created_at
+        data_type: TIMESTAMP
+        description: When the environment record was created.
+        role: timestamp
+        nullable: false
+
+  - name: regions
+    description: Geographic regions that group physical sites.
+    business_definition: >-
+      A region is a broad geographic area (for example eu-west or us-east) used for
+      capacity planning and for routing traffic close to end users.
+    domain: organisation
+    grain: one row per geographic region
+    preferred_alias: r
+    primary_key: [region_id]
+    synonyms: [geo, geography, area]
+    tags: [dimension, reference]
+    columns:
+      - name: region_id
+        data_type: INTEGER
+        description: Surrogate primary key for the region.
+        role: identifier
+        nullable: false
+        is_primary_key: true
+      - name: region_code
+        data_type: VARCHAR(16)
+        description: Short region code.
+        role: dimension
+        nullable: false
+        example_values: [us-east, us-west, eu-west, ap-south]
+      - name: region_name
+        data_type: VARCHAR(64)
+        description: Human readable region name.
+        role: dimension
+        nullable: false
+      - name: continent
+        data_type: VARCHAR(32)
+        description: Continent the region belongs to.
+        role: dimension
+        allowed_values: [North America, South America, Europe, Asia, Africa, Oceania]
+      - name: created_at
+        data_type: TIMESTAMP
+        description: When the region record was created.
+        role: timestamp
+        nullable: false
+
+  - name: sites
+    description: Physical data centre sites where network devices are installed.
+    business_definition: >-
+      A site is a physical facility (data centre, colocation cage or branch office)
+      that hosts hardware. Sites roll up into regions.
+    domain: organisation
+    grain: one row per physical site
+    preferred_alias: s
+    primary_key: [site_id]
+    synonyms: [data centre, data center, facility, location, dc]
+    tags: [dimension, reference]
+    foreign_keys:
+      - column: region_id
+        references_table: regions
+        references_column: region_id
+        description: The region the site is located in.
+    columns:
+      - name: site_id
+        data_type: INTEGER
+        description: Surrogate primary key for the site.
+        role: identifier
+        nullable: false
+        is_primary_key: true
+      - name: site_code
+        data_type: VARCHAR(16)
+        description: Short site code used in device naming conventions.
+        role: dimension
+        nullable: false
+        example_values: [IAD1, SFO2, DUB1]
+      - name: site_name
+        data_type: VARCHAR(128)
+        description: Human readable site name.
+        role: dimension
+        nullable: false
+      - name: region_id
+        data_type: INTEGER
+        description: Foreign key to the region containing this site.
+        role: identifier
+        nullable: false
+      - name: address
+        data_type: TEXT
+        description: Postal address of the facility.
+        role: descriptive
+      - name: latitude
+        data_type: DECIMAL(9,6)
+        description: Latitude of the facility.
+        role: measure
+        unit: degrees
+      - name: longitude
+        data_type: DECIMAL(9,6)
+        description: Longitude of the facility.
+        role: measure
+        unit: degrees
+      - name: is_active
+        data_type: BOOLEAN
+        description: False once a site has been decommissioned.
+        role: flag
+        nullable: false
+      - name: created_at
+        data_type: TIMESTAMP
+        description: When the site record was created.
+        role: timestamp
+        nullable: false
+    default_filters:
+      - "sites.is_active = TRUE"
+
+  - name: teams
+    description: Engineering teams that own infrastructure and respond to incidents.
+    business_definition: >-
+      A team is the on-call group accountable for a set of devices. Ownership drives
+      alert routing and incident assignment.
+    domain: organisation
+    grain: one row per team
+    preferred_alias: t
+    primary_key: [team_id]
+    synonyms: [squad, owning team, on-call team, group]
+    tags: [dimension, reference]
+    columns:
+      - name: team_id
+        data_type: INTEGER
+        description: Surrogate primary key for the team.
+        role: identifier
+        nullable: false
+        is_primary_key: true
+      - name: team_name
+        data_type: VARCHAR(128)
+        description: Human readable team name.
+        role: dimension
+        nullable: false
+      - name: team_email
+        data_type: VARCHAR(255)
+        description: Distribution list for the team.
+        role: descriptive
+      - name: escalation_policy
+        data_type: VARCHAR(64)
+        description: Named escalation policy applied to the team's alerts.
+        role: dimension
+        allowed_values: [follow_the_sun, business_hours, always_on]
+      - name: created_at
+        data_type: TIMESTAMP
+        description: When the team record was created.
+        role: timestamp
+        nullable: false
+
+  - name: users
+    description: Platform users who acknowledge alerts and act on incidents.
+    business_definition: >-
+      A user is an operator with access to the observability platform. Users belong
+      to exactly one team and are referenced by audit and incident records.
+    domain: organisation
+    grain: one row per user account
+    preferred_alias: u
+    primary_key: [user_id]
+    synonyms: [operator, engineer, account, person]
+    tags: [dimension, reference]
+    foreign_keys:
+      - column: team_id
+        references_table: teams
+        references_column: team_id
+        description: The team the user belongs to.
+    columns:
+      - name: user_id
+        data_type: INTEGER
+        description: Surrogate primary key for the user.
+        role: identifier
+        nullable: false
+        is_primary_key: true
+      - name: username
+        data_type: VARCHAR(64)
+        description: Unique login name.
+        role: dimension
+        nullable: false
+      - name: full_name
+        data_type: VARCHAR(128)
+        description: Display name of the user.
+        role: dimension
+        nullable: false
+      - name: email
+        data_type: VARCHAR(255)
+        description: Contact email address.
+        role: descriptive
+      - name: team_id
+        data_type: INTEGER
+        description: Foreign key to the owning team.
+        role: identifier
+      - name: role
+        data_type: VARCHAR(32)
+        description: Access level granted to the user.
+        role: dimension
+        allowed_values: [admin, engineer, analyst, viewer]
+      - name: is_active
+        data_type: BOOLEAN
+        description: False once the account has been deactivated.
+        role: flag
+        nullable: false
+      - name: created_at
+        data_type: TIMESTAMP
+        description: When the user account was created.
+        role: timestamp
+        nullable: false

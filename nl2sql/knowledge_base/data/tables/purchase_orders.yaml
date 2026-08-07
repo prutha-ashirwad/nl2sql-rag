@@ -1,0 +1,49 @@
+# purchase_orders — added from the Knowledge Base tab.
+tables:
+- name: purchase_orders
+  description: Hardware purchase orders raised against a vendor.
+  business_definition: A purchase order is a confirmed hardware order placed with a vendor.
+    Use it for spend, ordering activity and what we have bought from whom.
+  domain: procurement
+  grain: one purchase order
+  preferred_alias: po
+  synonyms:
+  - purchase order
+  - PO
+  - hardware order
+  - procurement order
+  primary_key:
+  - purchase_order_id
+  foreign_keys:
+  - column: vendor_id
+    references_table: vendors
+    references_column: vendor_id
+    description: The vendors row this record belongs to.
+  columns:
+  - name: purchase_order_id
+    data_type: INTEGER
+    description: Surrogate key for the purchase order.
+    role: identifier
+    is_primary_key: true
+    nullable: false
+  - name: vendor_id
+    data_type: INTEGER
+    description: The vendor the order was placed with.
+    role: identifier
+  - name: order_status
+    data_type: TEXT
+    description: Current state of the order.
+    role: dimension
+    allowed_values:
+    - OPEN
+    - APPROVED
+    - DELIVERED
+    - CANCELLED
+  - name: total_cost
+    data_type: INTEGER
+    description: Total order value in US dollars.
+    role: measure
+  - name: ordered_at
+    data_type: TIMESTAMP
+    description: When the order was placed.
+    role: timestamp

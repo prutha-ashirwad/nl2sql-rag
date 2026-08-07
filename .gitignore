@@ -24,7 +24,7 @@ htmlcov/
 .env.local
 
 # Generated data: the demo database is rebuilt by `make seed`
-data/
+/data/
 *.db
 *.sqlite
 *.sqlite3

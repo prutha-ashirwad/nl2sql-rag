@@ -1,0 +1,405 @@
+# Curated joins between tables.
+#
+# Foreign keys (declared on each table) describe the *physical* link. The entries
+# below add the *intent*: why two tables are joined and how the join should be
+# written. The join-path resolver walks this graph to build correct multi-hop joins,
+# so adding a relationship here immediately widens what the agent can answer.
+relationships:
+  # --- Core observability chain -------------------------------------------------
+  - name: observation_belongs_to_interface
+    from_table: observations
+    from_column: interface_id
+    to_table: interfaces
+    to_column: interface_id
+    cardinality: many_to_one
+    join_type: INNER
+    description: Every observation is taken from exactly one network interface.
+    business_meaning: >-
+      The primary path from measurements to the port they describe. Required whenever
+      a question asks about failures or health "by interface" or "per port".
+
+  - name: interface_belongs_to_device
+    from_table: interfaces
+    from_column: device_id
+    to_table: devices
+    to_column: device_id
+    cardinality: many_to_one
+    join_type: INNER
+    description: Each interface is a port on exactly one device.
+    business_meaning: >-
+      Rolls interface level telemetry up to the device that owns it, which is the
+      unit of hardware ownership and replacement.
+
+  - name: observation_recorded_on_device
+    from_table: observations
+    from_column: device_id
+    to_table: devices
+    to_column: device_id
+    cardinality: many_to_one
+    join_type: INNER
+    description: Denormalised shortcut from an observation to its device.
+    business_meaning: >-
+      Lets device level questions skip the interfaces table entirely, which keeps
+      large aggregate scans cheap.
+
+  - name: observation_in_environment
+    from_table: observations
+    from_column: environment_id
+    to_table: environments
+    to_column: environment_id
+    cardinality: many_to_one
+    join_type: INNER
+    description: Each observation is attributed to one deployment environment.
+    business_meaning: >-
+      The standard slice for reporting. Grouping observations by environment separates
+      production impact from non-production noise.
+
+  - name: observation_has_type
+    from_table: observations
+    from_column: observation_type_id
+    to_table: observation_types
+    to_column: observation_type_id
+    cardinality: many_to_one
+    join_type: INNER
+    description: Each observation is produced by one kind of check.
+    business_meaning: >-
+      Distinguishes availability checks from performance checks so that failure counts
+      can be compared like for like.
+
+  - name: observation_has_failure_reason
+    from_table: observations
+    from_column: failure_reason_id
+    to_table: failure_reasons
+    to_column: failure_reason_id
+    cardinality: many_to_one
+    join_type: LEFT
+    description: >-
+      A failed observation carries a failure reason; successful observations do not.
+    business_meaning: >-
+      Must be joined with LEFT JOIN because the foreign key is null for every
+      successful observation. Using an inner join here silently drops healthy rows.
+
+  - name: observation_collected_by_collector
+    from_table: observations
+    from_column: collector_id
+    to_table: collectors
+    to_column: collector_id
+    cardinality: many_to_one
+    join_type: LEFT
+    traversal_cost: 4.0
+    description: The collector agent that produced the observation.
+    business_meaning: >-
+      Used to distinguish a genuine device fault from a collector outage that made
+      healthy devices look unreachable. Costed higher than the device path because
+      it records *how* a measurement was gathered, not *what* was measured: an
+      observation's site is the site of its device, not of the agent that polled it.
+
+  - name: observation_emits_metrics
+    from_table: observation_metrics
+    from_column: observation_id
+    to_table: observations
+    to_column: observation_id
+    cardinality: many_to_one
+    join_type: INNER
+    description: Each metric sample belongs to one observation.
+    business_meaning: >-
+      Connects numeric measurements such as latency to the check that produced them.
+
+  # --- Inventory and topology ---------------------------------------------------
+  - name: device_has_model
+    from_table: devices
+    from_column: model_id
+    to_table: device_models
+    to_column: model_id
+    cardinality: many_to_one
+    join_type: INNER
+    description: Each device is an instance of one hardware model.
+    business_meaning: >-
+      Enables fleet-wide analysis such as identifying a model with a systemic fault.
+
+  - name: model_supplied_by_vendor
+    from_table: device_models
+    from_column: vendor_id
+    to_table: vendors
+    to_column: vendor_id
+    cardinality: many_to_one
+    join_type: INNER
+    description: Each hardware model is manufactured by one vendor.
+    business_meaning: >-
+      Second hop of the device to vendor path, used for support escalation reporting.
+
+  - name: device_installed_at_site
+    from_table: devices
+    from_column: site_id
+    to_table: sites
+    to_column: site_id
+    cardinality: many_to_one
+    join_type: INNER
+    description: Each device is racked at one physical site.
+    business_meaning: >-
+      Localises failures geographically, which separates a site-wide power event from
+      an isolated hardware fault.
+
+  - name: device_serves_environment
+    from_table: devices
+    from_column: environment_id
+    to_table: environments
+    to_column: environment_id
+    cardinality: many_to_one
+    join_type: INNER
+    description: Each device serves one deployment environment.
+    business_meaning: Alternative environment path for questions framed around devices.
+
+  - name: device_owned_by_team
+    from_table: devices
+    from_column: owner_team_id
+    to_table: teams
+    to_column: team_id
+    cardinality: many_to_one
+    join_type: LEFT
+    description: The team accountable for the device.
+    business_meaning: >-
+      Drives alert routing. Left joined because unracked or newly imported devices may
+      not have an owner assigned yet.
+
+  - name: site_located_in_region
+    from_table: sites
+    from_column: region_id
+    to_table: regions
+    to_column: region_id
+    cardinality: many_to_one
+    join_type: INNER
+    description: Each site sits within one geographic region.
+    business_meaning: Rolls site level reporting up to regional capacity planning.
+
+  - name: interface_has_type
+    from_table: interfaces
+    from_column: interface_type_id
+    to_table: interface_types
+    to_column: interface_type_id
+    cardinality: many_to_one
+    join_type: LEFT
+    description: The physical media and rated speed of the interface.
+    business_meaning: >-
+      Normalises port capacity across vendors so utilisation can be compared fairly.
+
+  - name: collector_deployed_at_site
+    from_table: collectors
+    from_column: site_id
+    to_table: sites
+    to_column: site_id
+    cardinality: many_to_one
+    join_type: INNER
+    description: Each collector agent serves one site.
+    business_meaning: Identifies which sites lose visibility when a collector goes offline.
+
+  # --- Alerting and incident response -------------------------------------------
+  - name: alert_raised_by_rule
+    from_table: alerts
+    from_column: rule_id
+    to_table: alert_rules
+    to_column: rule_id
+    cardinality: many_to_one
+    join_type: INNER
+    description: Each alert is a firing of exactly one rule.
+    business_meaning: >-
+      Shows which rules are noisy and which genuinely detect customer impact.
+
+  - name: alert_triggered_by_observation
+    from_table: alerts
+    from_column: observation_id
+    to_table: observations
+    to_column: observation_id
+    cardinality: many_to_one
+    join_type: INNER
+    description: Each alert is raised by one breaching observation.
+    business_meaning: >-
+      The bridge between raw telemetry and the operator-facing signal, used to trace
+      an alert back to the measurement that caused it.
+
+  - name: alert_belongs_to_incident
+    from_table: alerts
+    from_column: incident_id
+    to_table: incidents
+    to_column: incident_id
+    cardinality: many_to_one
+    join_type: LEFT
+    description: Related alerts are rolled up into a single incident.
+    business_meaning: >-
+      Left joined because most alerts are resolved without ever being escalated into
+      a formal incident.
+
+  - name: alert_acknowledged_by_user
+    from_table: alerts
+    from_column: acknowledged_by_user_id
+    to_table: users
+    to_column: user_id
+    cardinality: many_to_one
+    join_type: LEFT
+    description: The operator who acknowledged the alert.
+    business_meaning: >-
+      Feeds response time reporting. Null until somebody picks the alert up.
+
+  - name: incident_affects_environment
+    from_table: incidents
+    from_column: environment_id
+    to_table: environments
+    to_column: environment_id
+    cardinality: many_to_one
+    join_type: INNER
+    description: Each incident is scoped to one environment.
+    business_meaning: Separates production outages from non-production ones.
+
+  - name: incident_owned_by_team
+    from_table: incidents
+    from_column: owner_team_id
+    to_table: teams
+    to_column: team_id
+    cardinality: many_to_one
+    join_type: LEFT
+    description: The team leading the incident response.
+    business_meaning: Used for per-team incident load and time-to-resolve reporting.
+
+  - name: incident_has_timeline_events
+    from_table: incident_events
+    from_column: incident_id
+    to_table: incidents
+    to_column: incident_id
+    cardinality: many_to_one
+    join_type: INNER
+    description: Each timeline entry belongs to one incident.
+    business_meaning: Reconstructs the response narrative for post-incident review.
+
+  # --- Governance ---------------------------------------------------------------
+  - name: maintenance_window_covers_device
+    from_table: maintenance_windows
+    from_column: device_id
+    to_table: devices
+    to_column: device_id
+    cardinality: many_to_one
+    join_type: LEFT
+    description: A maintenance window may target one specific device.
+    business_meaning: >-
+      Left joined because site-wide windows leave device_id null. Used to exclude
+      expected failures from availability calculations.
+
+  - name: slo_target_for_environment
+    from_table: slo_targets
+    from_column: environment_id
+    to_table: environments
+    to_column: environment_id
+    cardinality: many_to_one
+    join_type: INNER
+    description: Each SLO target applies to one environment.
+    business_meaning: Provides the benchmark that measured success rates are compared against.
+
+  - name: audit_log_written_by_user
+    from_table: audit_logs
+    from_column: actor_user_id
+    to_table: users
+    to_column: user_id
+    cardinality: many_to_one
+    join_type: LEFT
+    description: The user who performed the audited change.
+    business_meaning: >-
+      Left joined because automated changes are recorded without a human actor.
+  - name: purchase_orders_to_vendors
+    from_table: purchase_orders
+    from_column: vendor_id
+    to_table: vendors
+    to_column: vendor_id
+    cardinality: many_to_one
+    join_type: INNER
+    description: Each purchase_orders row belongs to one vendors row.
+    business_meaning: >-
+      Attributes spend to the supplier it was raised with, which is the unit
+      procurement negotiates and reports on.
+
+  # --- Ownership and scheduling -------------------------------------------------
+  # Every foreign key needs an entry here, not just the ones on the busiest paths:
+  # the join planner walks these relationships, and a physical link with no declared
+  # relationship is invisible to it. It will then route around the missing edge
+  # through whatever longer path it can find, which answers a different question.
+  - name: user_belongs_to_team
+    from_table: users
+    from_column: team_id
+    to_table: teams
+    to_column: team_id
+    cardinality: many_to_one
+    join_type: LEFT
+    description: The team a user belongs to.
+    business_meaning: >-
+      The path from a person to the group accountable for their work. Left joined
+      because contractors and service accounts sit outside the team structure.
+
+  - name: alert_raised_on_device
+    from_table: alerts
+    from_column: device_id
+    to_table: devices
+    to_column: device_id
+    cardinality: many_to_one
+    join_type: INNER
+    description: Denormalised shortcut from an alert to the device it fired on.
+    business_meaning: >-
+      Lets alert questions reach hardware attributes without going back through the
+      observation that triggered them.
+
+  - name: alert_rule_targets_observation_type
+    from_table: alert_rules
+    from_column: observation_type_id
+    to_table: observation_types
+    to_column: observation_type_id
+    cardinality: many_to_one
+    join_type: INNER
+    description: The kind of measurement a rule is evaluated against.
+    business_meaning: >-
+      Explains what a rule actually watches, which is what separates a latency
+      threshold from a link-state check.
+
+  - name: slo_target_applies_to_observation_type
+    from_table: slo_targets
+    from_column: observation_type_id
+    to_table: observation_types
+    to_column: observation_type_id
+    cardinality: many_to_one
+    join_type: INNER
+    description: The kind of measurement an SLO target is set for.
+    business_meaning: >-
+      Pairs a target with the measurement it governs, so attainment is compared
+      against the right benchmark.
+
+  - name: incident_event_recorded_by_user
+    from_table: incident_events
+    from_column: actor_user_id
+    to_table: users
+    to_column: user_id
+    cardinality: many_to_one
+    join_type: LEFT
+    description: The user who recorded a timeline entry on an incident.
+    business_meaning: >-
+      Left joined because automated timeline entries are written without a human
+      actor.
+
+  - name: maintenance_window_covers_site
+    from_table: maintenance_windows
+    from_column: site_id
+    to_table: sites
+    to_column: site_id
+    cardinality: many_to_one
+    join_type: LEFT
+    description: The site a maintenance window applies to.
+    business_meaning: >-
+      Site-wide windows name a site and no device, so this is the only path that
+      reaches them. Left joined because a device-specific window leaves it null.
+
+  - name: maintenance_window_requested_by_user
+    from_table: maintenance_windows
+    from_column: requested_by_user_id
+    to_table: users
+    to_column: user_id
+    cardinality: many_to_one
+    join_type: LEFT
+    description: The user who raised the maintenance window.
+    business_meaning: >-
+      Left joined because recurring windows are created by automation rather than by
+      a named engineer.

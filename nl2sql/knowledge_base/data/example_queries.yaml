@@ -1,0 +1,255 @@
+# Curated question / SQL pairs.
+#
+# Retrieved as few-shot examples. A question that closely resembles one of these gets
+# a near-exact template to follow, which is the cheapest available accuracy win.
+examples:
+  - id: EX-001
+    question: Show all failed observations in the last 24 hours.
+    tables_used: [observations, interfaces, devices, environments, failure_reasons]
+    tags: [failures, time_window, detail]
+    explanation: >-
+      Filters the observations fact table on the FAILED status and a rolling 24 hour
+      window over observed_at. failure_reasons is LEFT joined because the foreign key
+      is nullable, and descriptive names are selected instead of surrogate keys.
+    sql: |
+      SELECT
+          o.observation_id,
+          o.observed_at,
+          d.device_name,
+          i.interface_name,
+          e.environment_name,
+          fr.reason_name AS failure_reason
+      FROM observations o
+      INNER JOIN interfaces i ON o.interface_id = i.interface_id
+      INNER JOIN devices d ON o.device_id = d.device_id
+      INNER JOIN environments e ON o.environment_id = e.environment_id
+      LEFT JOIN failure_reasons fr ON o.failure_reason_id = fr.failure_reason_id
+      WHERE o.status = 'FAILED'
+        AND o.observed_at >= datetime('now', '-24 hours')
+      ORDER BY o.observed_at DESC
+      LIMIT 100
+
+  - id: EX-002
+    question: List interfaces with the highest failure count.
+    tables_used: [observations, interfaces, devices]
+    tags: [failures, ranking, aggregation]
+    explanation: >-
+      Aggregates failed observations per interface. The count is aliased so the ORDER BY
+      can reference it, and the device name is included because interface names are only
+      unique within a device.
+    sql: |
+      SELECT
+          i.interface_name,
+          d.device_name,
+          COUNT(*) AS failure_count
+      FROM observations o
+      INNER JOIN interfaces i ON o.interface_id = i.interface_id
+      INNER JOIN devices d ON i.device_id = d.device_id
+      WHERE o.status = 'FAILED'
+      GROUP BY i.interface_name, d.device_name
+      ORDER BY failure_count DESC
+      LIMIT 10
+
+  - id: EX-003
+    question: Display observations grouped by environment.
+    tables_used: [observations, environments]
+    tags: [aggregation, grouping]
+    explanation: >-
+      Groups the fact table by the environment dimension and reports both total volume
+      and the failed subset, which is what makes the breakdown actionable.
+    sql: |
+      SELECT
+          e.environment_name,
+          COUNT(*) AS observation_count,
+          SUM(CASE WHEN o.status = 'FAILED' THEN 1 ELSE 0 END) AS failed_count
+      FROM observations o
+      INNER JOIN environments e ON o.environment_id = e.environment_id
+      GROUP BY e.environment_name
+      ORDER BY observation_count DESC
+
+  - id: EX-004
+    question: What is the success rate per environment over the last 7 days?
+    tables_used: [observations, environments]
+    tags: [aggregation, success_rate, time_window]
+    explanation: >-
+      Uses a floating point numerator so the division is not truncated to zero, and
+      applies the time window in WHERE rather than HAVING.
+    sql: |
+      SELECT
+          e.environment_name,
+          COUNT(*) AS total_observations,
+          ROUND(
+              100.0 * SUM(CASE WHEN o.status = 'SUCCESS' THEN 1 ELSE 0 END) / COUNT(*),
+              2
+          ) AS success_rate_pct
+      FROM observations o
+      INNER JOIN environments e ON o.environment_id = e.environment_id
+      WHERE o.observed_at >= datetime('now', '-7 days')
+      GROUP BY e.environment_name
+      ORDER BY success_rate_pct ASC
+
+  - id: EX-005
+    question: Which devices had the most failures in production yesterday?
+    tables_used: [observations, devices, environments]
+    tags: [failures, ranking, filtering, time_window]
+    explanation: >-
+      Combines an environment filter with a bounded time window. The window uses both a
+      lower and an upper bound so that today's data is excluded.
+    sql: |
+      SELECT
+          d.device_name,
+          COUNT(*) AS failure_count
+      FROM observations o
+      INNER JOIN devices d ON o.device_id = d.device_id
+      INNER JOIN environments e ON o.environment_id = e.environment_id
+      WHERE o.status = 'FAILED'
+        AND e.environment_code = 'PROD'
+        AND o.observed_at >= datetime('now', '-1 day')
+        AND o.observed_at < datetime('now')
+      GROUP BY d.device_name
+      ORDER BY failure_count DESC
+      LIMIT 10
+
+  - id: EX-006
+    question: Break down failures by failure reason.
+    tables_used: [observations, failure_reasons]
+    tags: [failures, grouping]
+    explanation: >-
+      An inner join is correct here because the query is restricted to failed
+      observations, which always carry a failure reason.
+    sql: |
+      SELECT
+          fr.reason_name,
+          fr.severity,
+          COUNT(*) AS failure_count
+      FROM observations o
+      INNER JOIN failure_reasons fr ON o.failure_reason_id = fr.failure_reason_id
+      WHERE o.status = 'FAILED'
+      GROUP BY fr.reason_name, fr.severity
+      ORDER BY failure_count DESC
+
+  - id: EX-007
+    question: Show open critical alerts that nobody has acknowledged.
+    tables_used: [alerts, devices, alert_rules]
+    tags: [alerts, filtering]
+    explanation: >-
+      Filters on both the workflow status and the null acknowledgement timestamp, since
+      a suppressed alert can also be unacknowledged.
+    sql: |
+      SELECT
+          a.alert_id,
+          a.triggered_at,
+          d.device_name,
+          ar.rule_name,
+          a.severity
+      FROM alerts a
+      INNER JOIN devices d ON a.device_id = d.device_id
+      INNER JOIN alert_rules ar ON a.rule_id = ar.rule_id
+      WHERE a.alert_status = 'OPEN'
+        AND a.severity = 'critical'
+        AND a.acknowledged_at IS NULL
+      ORDER BY a.triggered_at DESC
+      LIMIT 100
+
+  - id: EX-008
+    question: Average latency per device over the last hour.
+    tables_used: [observation_metrics, observations, devices]
+    tags: [metrics, aggregation, time_window]
+    explanation: >-
+      Walks from the metric table up through observations to devices, filtering on the
+      metric name so that unrelated metric types are not averaged together.
+    sql: |
+      SELECT
+          d.device_name,
+          ROUND(AVG(om.metric_value), 2) AS avg_latency_ms,
+          COUNT(*) AS sample_count
+      FROM observation_metrics om
+      INNER JOIN observations o ON om.observation_id = o.observation_id
+      INNER JOIN devices d ON o.device_id = d.device_id
+      WHERE om.metric_name = 'latency_ms'
+        AND om.recorded_at >= datetime('now', '-1 hour')
+      GROUP BY d.device_name
+      ORDER BY avg_latency_ms DESC
+      LIMIT 20
+
+  - id: EX-009
+    question: How many failures did each site record this week?
+    tables_used: [observations, devices, sites, regions]
+    tags: [failures, grouping, multi_hop_join, time_window]
+    explanation: >-
+      A three hop join from the fact table out to the region dimension, showing how the
+      join path is walked one declared relationship at a time.
+    sql: |
+      SELECT
+          s.site_name,
+          r.region_name,
+          COUNT(*) AS failure_count
+      FROM observations o
+      INNER JOIN devices d ON o.device_id = d.device_id
+      INNER JOIN sites s ON d.site_id = s.site_id
+      INNER JOIN regions r ON s.region_id = r.region_id
+      WHERE o.status = 'FAILED'
+        AND o.observed_at >= datetime('now', '-7 days')
+      GROUP BY s.site_name, r.region_name
+      ORDER BY failure_count DESC
+
+  - id: EX-010
+    question: Which teams own the most currently open incidents?
+    tables_used: [incidents, teams]
+    tags: [incidents, aggregation]
+    explanation: >-
+      Left joins the team dimension so that unassigned incidents are still counted
+      rather than silently dropped from the total.
+    sql: |
+      SELECT
+          COALESCE(t.team_name, 'Unassigned') AS team_name,
+          COUNT(*) AS open_incident_count
+      FROM incidents inc
+      LEFT JOIN teams t ON inc.owner_team_id = t.team_id
+      WHERE inc.incident_status IN ('OPEN', 'INVESTIGATING')
+      GROUP BY COALESCE(t.team_name, 'Unassigned')
+      ORDER BY open_incident_count DESC
+
+  - id: EX-011
+    question: Show failure counts by vendor and hardware model.
+    tables_used: [observations, devices, device_models, vendors]
+    tags: [failures, grouping, multi_hop_join]
+    explanation: >-
+      Demonstrates the device to vendor path, which needs two hops through the
+      device_models table rather than a direct join.
+    sql: |
+      SELECT
+          v.vendor_name,
+          dm.model_name,
+          COUNT(*) AS failure_count
+      FROM observations o
+      INNER JOIN devices d ON o.device_id = d.device_id
+      INNER JOIN device_models dm ON d.model_id = dm.model_id
+      INNER JOIN vendors v ON dm.vendor_id = v.vendor_id
+      WHERE o.status = 'FAILED'
+      GROUP BY v.vendor_name, dm.model_name
+      ORDER BY failure_count DESC
+      LIMIT 20
+
+  - id: EX-012
+    question: List the top 5 uplink interfaces by failure count in production.
+    tables_used: [observations, interfaces, devices, environments]
+    tags: [failures, ranking, filtering]
+    explanation: >-
+      Shows an explicit row limit taken from the question and a boolean flag filter
+      written against the declared column rather than a free text description.
+    sql: |
+      SELECT
+          i.interface_name,
+          d.device_name,
+          COUNT(*) AS failure_count
+      FROM observations o
+      INNER JOIN interfaces i ON o.interface_id = i.interface_id
+      INNER JOIN devices d ON i.device_id = d.device_id
+      INNER JOIN environments e ON o.environment_id = e.environment_id
+      WHERE o.status = 'FAILED'
+        AND i.is_uplink = TRUE
+        AND e.environment_code = 'PROD'
+      GROUP BY i.interface_name, d.device_name
+      ORDER BY failure_count DESC
+      LIMIT 5

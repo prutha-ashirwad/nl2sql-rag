@@ -1,0 +1,179 @@
+# Planned change, service level targets and audit history.
+tables:
+  - name: maintenance_windows
+    description: Scheduled maintenance periods during which alerts are suppressed.
+    business_definition: >-
+      A maintenance window is a planned change slot for a site or a single device.
+      Failed observations inside an active window are usually expected and should be
+      excluded from availability reporting.
+    domain: governance
+    grain: one row per scheduled maintenance window
+    primary_key: [maintenance_window_id]
+    synonyms: [change window, planned work, downtime window, outage window]
+    tags: [dimension, reference]
+    foreign_keys:
+      - column: site_id
+        references_table: sites
+        references_column: site_id
+        description: The site the maintenance affects.
+      - column: device_id
+        references_table: devices
+        references_column: device_id
+        description: The specific device under maintenance, when narrower than a site.
+      - column: requested_by_user_id
+        references_table: users
+        references_column: user_id
+        description: The user who requested the window.
+    columns:
+      - name: maintenance_window_id
+        data_type: INTEGER
+        description: Surrogate primary key for the maintenance window.
+        role: identifier
+        nullable: false
+        is_primary_key: true
+      - name: site_id
+        data_type: INTEGER
+        description: Foreign key to the affected site.
+        role: identifier
+      - name: device_id
+        data_type: INTEGER
+        description: Foreign key to the affected device; null for site-wide windows.
+        role: identifier
+      - name: title
+        data_type: VARCHAR(255)
+        description: Short description of the planned work.
+        role: descriptive
+        nullable: false
+      - name: window_status
+        data_type: VARCHAR(24)
+        description: Lifecycle state of the maintenance window.
+        role: dimension
+        nullable: false
+        allowed_values: [SCHEDULED, IN_PROGRESS, COMPLETED, CANCELLED]
+      - name: starts_at
+        data_type: TIMESTAMP
+        description: When the maintenance window opens.
+        role: timestamp
+        nullable: false
+      - name: ends_at
+        data_type: TIMESTAMP
+        description: When the maintenance window closes.
+        role: timestamp
+        nullable: false
+      - name: requested_by_user_id
+        data_type: INTEGER
+        description: Foreign key to the requesting user.
+        role: identifier
+      - name: created_at
+        data_type: TIMESTAMP
+        description: When the maintenance window was raised.
+        role: timestamp
+        nullable: false
+
+  - name: slo_targets
+    description: Service level objectives defined per environment and observation type.
+    business_definition: >-
+      An SLO target is the agreed minimum success rate for a class of checks in a
+      given environment. Comparing measured success rate against the target shows
+      whether the platform is meeting its commitments.
+    domain: governance
+    grain: one row per environment and observation type combination
+    primary_key: [slo_target_id]
+    synonyms: [slo, service level objective, availability target, sla]
+    tags: [dimension, reference]
+    foreign_keys:
+      - column: environment_id
+        references_table: environments
+        references_column: environment_id
+        description: The environment the target applies to.
+      - column: observation_type_id
+        references_table: observation_types
+        references_column: observation_type_id
+        description: The observation type the target applies to.
+    columns:
+      - name: slo_target_id
+        data_type: INTEGER
+        description: Surrogate primary key for the SLO target.
+        role: identifier
+        nullable: false
+        is_primary_key: true
+      - name: environment_id
+        data_type: INTEGER
+        description: Foreign key to the environment.
+        role: identifier
+        nullable: false
+      - name: observation_type_id
+        data_type: INTEGER
+        description: Foreign key to the observation type.
+        role: identifier
+        nullable: false
+      - name: target_success_rate
+        data_type: DECIMAL(5,2)
+        description: Minimum acceptable percentage of successful observations.
+        role: measure
+        unit: percent
+      - name: measurement_window_days
+        data_type: INTEGER
+        description: Rolling window the target is measured over.
+        role: measure
+        unit: days
+      - name: is_active
+        data_type: BOOLEAN
+        description: False once the target has been retired.
+        role: flag
+        nullable: false
+    default_filters:
+      - "slo_targets.is_active = TRUE"
+
+  - name: audit_logs
+    description: Immutable record of configuration changes made in the platform.
+    business_definition: >-
+      An audit log entry captures who changed what and when. It is append-only and is
+      the source of truth for change attribution during incident reviews.
+    domain: governance
+    grain: one row per audited change
+    primary_key: [audit_log_id]
+    synonyms: [audit trail, change log, activity log, history]
+    tags: [fact]
+    foreign_keys:
+      - column: actor_user_id
+        references_table: users
+        references_column: user_id
+        description: The user who performed the change.
+    columns:
+      - name: audit_log_id
+        data_type: BIGINT
+        description: Surrogate primary key for the audit entry.
+        role: identifier
+        nullable: false
+        is_primary_key: true
+      - name: actor_user_id
+        data_type: INTEGER
+        description: Foreign key to the acting user.
+        role: identifier
+      - name: entity_type
+        data_type: VARCHAR(64)
+        description: Name of the entity that was changed.
+        role: dimension
+        nullable: false
+        example_values: [device, interface, alert_rule]
+      - name: entity_id
+        data_type: INTEGER
+        description: Primary key of the changed entity.
+        role: identifier
+        nullable: false
+      - name: action
+        data_type: VARCHAR(32)
+        description: Kind of change applied.
+        role: dimension
+        nullable: false
+        allowed_values: [create, update, delete, enable, disable]
+      - name: changed_at
+        data_type: TIMESTAMP
+        description: When the change was applied.
+        role: timestamp
+        nullable: false
+      - name: details
+        data_type: TEXT
+        description: Serialised before and after values for the change.
+        role: descriptive

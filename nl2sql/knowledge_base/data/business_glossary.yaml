@@ -1,0 +1,156 @@
+# Business glossary.
+#
+# Maps the words operators actually use onto concrete schema elements. Retrieval
+# matches on the term and its synonyms, so a question phrased in business language
+# still pulls the right tables and columns into context.
+glossary:
+  - term: failed observation
+    definition: >-
+      A monitoring observation whose status is FAILED, meaning the check did not
+      complete successfully against the target interface.
+    synonyms: [failure, failed check, failed poll, error, unsuccessful observation]
+    maps_to_tables: [observations, failure_reasons]
+    maps_to_columns: [observations.status, observations.failure_reason_id]
+    sql_hint: "observations.status = 'FAILED'"
+
+  - term: failure count
+    definition: The number of failed observations recorded for a given entity.
+    synonyms: [error count, number of failures, failure volume, how many failures]
+    maps_to_tables: [observations]
+    maps_to_columns: [observations.status]
+    sql_hint: "COUNT(*) with observations.status = 'FAILED'"
+
+  - term: success rate
+    definition: >-
+      Percentage of observations that completed successfully over the period being
+      measured. The headline availability metric of the platform.
+    synonyms: [availability, uptime, health score, pass rate, success percentage]
+    maps_to_tables: [observations]
+    maps_to_columns: [observations.status]
+    sql_hint: >-
+      100.0 * SUM(CASE WHEN observations.status = 'SUCCESS' THEN 1 ELSE 0 END) / COUNT(*)
+    metric_expression: >-
+      ROUND(100.0 * SUM(CASE WHEN observations.status = 'SUCCESS' THEN 1 ELSE 0 END)
+      / COUNT(*), 2)
+    metric_alias: success_rate_pct
+
+  - term: failure rate
+    definition: >-
+      Percentage of observations that failed over the period being measured. The
+      inverse view of the success rate, used when reporting on error budgets.
+    synonyms: [error rate, failure percentage, percentage of failures]
+    maps_to_tables: [observations]
+    maps_to_columns: [observations.status]
+    sql_hint: >-
+      100.0 * SUM(CASE WHEN observations.status = 'FAILED' THEN 1 ELSE 0 END) / COUNT(*)
+    metric_expression: >-
+      ROUND(100.0 * SUM(CASE WHEN observations.status = 'FAILED' THEN 1 ELSE 0 END)
+      / COUNT(*), 2)
+    metric_alias: failure_rate_pct
+
+  - term: average latency
+    definition: >-
+      Mean round trip time across latency probe samples over the period being
+      measured.
+    synonyms: [mean latency, avg latency, typical latency, latency]
+    maps_to_tables: [observation_metrics]
+    maps_to_columns: [observation_metrics.metric_value]
+    metric_expression: >-
+      ROUND(AVG(CASE WHEN observation_metrics.metric_name = 'latency_ms'
+      THEN observation_metrics.metric_value END), 2)
+    metric_alias: avg_latency_ms
+
+  - term: last 24 hours
+    definition: >-
+      A rolling window covering the twenty four hours immediately preceding the current
+      time, applied to the relevant event timestamp.
+    synonyms: [past day, last day, today, past 24 hours, previous 24 hours]
+    maps_to_tables: [observations, alerts]
+    maps_to_columns: [observations.observed_at, alerts.triggered_at]
+    sql_hint: "observations.observed_at >= datetime('now', '-24 hours')"
+
+  - term: environment
+    definition: >-
+      The deployment stage infrastructure belongs to, such as production or staging.
+      The standard axis for slicing every operational report.
+    synonyms: [env, stage, deployment stage, tier]
+    maps_to_tables: [environments]
+    maps_to_columns: [environments.environment_name, environments.environment_code]
+
+  - term: interface
+    definition: >-
+      An individual network port on a device, and the finest grain at which link
+      health is observed.
+    synonyms: [port, link, nic, network port]
+    maps_to_tables: [interfaces]
+    maps_to_columns: [interfaces.interface_name]
+
+  - term: device
+    definition: >-
+      A physically managed piece of network hardware such as a router or switch, and
+      the parent of one or more interfaces.
+    synonyms: [node, host, appliance, switch, router, box]
+    maps_to_tables: [devices]
+    maps_to_columns: [devices.device_name]
+
+  - term: flapping interface
+    definition: >-
+      An interface whose operational state changes repeatedly in a short window,
+      identified by a high count of link state observations that did not succeed.
+    synonyms: [unstable link, bouncing port, intermittent interface]
+    maps_to_tables: [observations, interfaces, observation_types]
+    sql_hint: >-
+      Count observations where observation_types.type_code = 'LINK_STATE'
+      and observations.status <> 'SUCCESS', grouped by interface.
+
+  - term: unacknowledged alert
+    definition: An alert that has fired but that no operator has picked up yet.
+    synonyms: [open alert, unclaimed alert, pending alert]
+    maps_to_tables: [alerts]
+    maps_to_columns: [alerts.alert_status, alerts.acknowledged_at]
+    sql_hint: "alerts.alert_status = 'OPEN' AND alerts.acknowledged_at IS NULL"
+
+  - term: mean time to resolve
+    definition: >-
+      Average elapsed time between an incident being opened and being resolved,
+      measured only over incidents that have actually been resolved.
+    synonyms: [mttr, time to resolve, resolution time, time to fix]
+    maps_to_tables: [incidents]
+    maps_to_columns: [incidents.opened_at, incidents.resolved_at]
+    sql_hint: >-
+      AVG over incidents where resolved_at IS NOT NULL, of the difference between
+      resolved_at and opened_at.
+
+  - term: production
+    definition: The environment serving live customer traffic, coded PROD.
+    synonyms: [prod, live, customer facing]
+    maps_to_tables: [environments]
+    maps_to_columns: [environments.environment_code, environments.is_production]
+    sql_hint: "environments.environment_code = 'PROD'"
+
+  - term: uplink
+    definition: >-
+      An interface that carries traffic towards the network core rather than towards
+      an end host. Uplink failures have a far wider blast radius.
+    synonyms: [core link, trunk, upstream port]
+    maps_to_tables: [interfaces]
+    maps_to_columns: [interfaces.is_uplink]
+    sql_hint: "interfaces.is_uplink = TRUE"
+
+  - term: maintenance window
+    definition: >-
+      A planned change slot during which failures are expected and should normally be
+      excluded from availability reporting.
+    synonyms: [planned work, change window, scheduled downtime]
+    maps_to_tables: [maintenance_windows]
+    maps_to_columns: [maintenance_windows.starts_at, maintenance_windows.ends_at]
+
+  - term: noisy rule
+    definition: >-
+      An alert rule that fires frequently relative to how often its alerts lead to a
+      declared incident.
+    synonyms: [alert fatigue, chatty rule, false positive rule]
+    maps_to_tables: [alerts, alert_rules, incidents]
+    sql_hint: >-
+      Count alerts grouped by rule, comparing total alerts against the subset whose
+      incident_id is not null.
